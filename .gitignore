@@ -1,0 +1,22 @@
+node_modules
+dist
+build
+.turbo
+.next
+.astro
+coverage
+*.log
+.DS_Store
+
+# env: secrets stay local; mode-based files (development/staging/production) are committed for non-secret URLs
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.development
+!.env.staging
+!.env.production
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json

@@ -1,0 +1,130 @@
+{
+  "info": {
+    "name": "Auction API",
+    "description": "Endpoints for the @auction/api Nest service. Sessions are cookie-based — Postman's cookie jar persists `auction_session` after login/register and sends it on subsequent requests.\n\nTo update: when adding or changing an endpoint, edit this file in `apps/api/postman/`. Keep request bodies aligned with the zod schemas in `packages/types/src/` and `apps/api/src/modules/**/dto/`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "auctionId",
+      "value": "",
+      "type": "string",
+      "description": "UUID of an auction — set after creating one or pick from GET /auctions."
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"new.user@example.com\",\n  \"name\": \"New User\",\n  \"password\": \"changeme123\",\n  \"role\": \"bidder\"\n}"
+            },
+            "description": "Public. Creates a user and starts a session (sets the `auction_session` cookie). `role` must be `client` or `bidder`. Password 8–72 chars."
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@auctionit.ai\",\n  \"password\": \"changeme123\"\n}"
+            },
+            "description": "Public. On success, sets the `auction_session` cookie."
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] },
+            "description": "Returns the current user. Requires a valid session cookie (run Login or Register first)."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] },
+            "description": "Revokes the current session and clears the cookie."
+          }
+        },
+        {
+          "name": "Create user (admin only)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/users", "host": ["{{baseUrl}}"], "path": ["auth", "users"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"new.admin@example.com\",\n  \"name\": \"New Admin\",\n  \"password\": \"changeme123\",\n  \"role\": \"admin\"\n}"
+            },
+            "description": "Requires session with role `admin`. Creates a user with any role (admin/client/bidder) without starting a session for the new user — the calling admin stays signed in."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auctions",
+      "item": [
+        {
+          "name": "List auctions",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/auctions", "host": ["{{baseUrl}}"], "path": ["auctions"] },
+            "description": "Public."
+          }
+        },
+        {
+          "name": "Get auction by id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/auctions/{{auctionId}}", "host": ["{{baseUrl}}"], "path": ["auctions", "{{auctionId}}"] },
+            "description": "Public. `:id` must be a UUID (validated by ParseUUIDPipe)."
+          }
+        },
+        {
+          "name": "Create auction",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.id) pm.collectionVariables.set('auctionId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auctions", "host": ["{{baseUrl}}"], "path": ["auctions"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Vintage Watch\",\n  \"description\": \"1970s manual wind, serviced.\",\n  \"startingPriceCents\": 50000,\n  \"bidIncrementCents\": 500,\n  \"startsAt\": \"2026-05-05T10:00:00.000Z\",\n  \"endsAt\": \"2026-05-12T10:00:00.000Z\"\n}"
+            },
+            "description": "Requires session with role `client` or `admin`. The test script captures the returned `id` into the `auctionId` collection variable for use in Get/By-id."
+          }
+        }
+      ]
+    }
+  ]
+}

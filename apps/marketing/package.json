@@ -1,0 +1,31 @@
+{
+  "name": "@auction/marketing",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --mode development",
+    "build": "astro build --mode production",
+    "build:staging": "astro build --mode staging",
+    "build:production": "astro build --mode production",
+    "preview": "astro preview",
+    "typecheck": "astro check",
+    "lint": "eslint \"src/**/*.{ts,tsx,astro}\"",
+    "clean": "rm -rf dist .astro .turbo"
+  },
+  "dependencies": {
+    "@auction/ui": "workspace:*",
+    "@auction/utils": "workspace:*",
+    "astro": "^4.16.0",
+    "@astrojs/react": "^3.6.2",
+    "@astrojs/tailwind": "^5.1.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^3.4.13"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.6.3"
+  }
+}

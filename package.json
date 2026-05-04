@@ -1,0 +1,30 @@
+{
+  "name": "auction-app",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.11.0",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:api": "turbo run dev --filter=@auction/api",
+    "dev:marketing": "turbo run dev --filter=@auction/marketing",
+    "dev:client": "turbo run dev --filter=@auction/client",
+    "dev:bidder": "turbo run dev --filter=@auction/bidder",
+    "dev:admin": "turbo run dev --filter=@auction/admin",
+    "build": "turbo run build",
+    "build:staging": "turbo run build:staging",
+    "build:production": "turbo run build:production",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.1.3",
+    "typescript": "^5.6.3",
+    "prettier": "^3.3.3"
+  }
+}

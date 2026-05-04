@@ -1,0 +1,16 @@
+{
+  "name": "@auction/config",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "files": ["eslint", "tailwind", "tsconfig"],
+  "exports": {
+    "./eslint/base": "./eslint/base.js",
+    "./eslint/react": "./eslint/react.js",
+    "./eslint/node": "./eslint/node.js",
+    "./tailwind": "./tailwind/index.js"
+  },
+  "scripts": {
+    "clean": "rm -rf .turbo"
+  }
+}
