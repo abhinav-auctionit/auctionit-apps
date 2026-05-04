@@ -6,9 +6,20 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { UsersNewPage } from './pages/UsersNewPage';
+import { CategoriesPage } from './pages/CategoriesPage';
+import { AttributesPage } from './pages/AttributesPage';
+import { ItemsPage } from './pages/ItemsPage';
+import { ItemDetailPage } from './pages/ItemDetailPage';
+import { NewItemPage } from './pages/NewItemPage';
 
 const queryClient = new QueryClient();
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+
+const ADMIN = ['admin'] as const;
+
+function adminRoute(element: React.ReactNode) {
+  return <RequireAuth roles={[...ADMIN]}>{element}</RequireAuth>;
+}
 
 export function App() {
   return (
@@ -18,22 +29,13 @@ export function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route
-              path="/"
-              element={
-                <RequireAuth roles={['admin']}>
-                  <DashboardPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/users/new"
-              element={
-                <RequireAuth roles={['admin']}>
-                  <UsersNewPage />
-                </RequireAuth>
-              }
-            />
+            <Route path="/" element={adminRoute(<DashboardPage />)} />
+            <Route path="/users/new" element={adminRoute(<UsersNewPage />)} />
+            <Route path="/taxonomy/categories" element={adminRoute(<CategoriesPage />)} />
+            <Route path="/taxonomy/attributes" element={adminRoute(<AttributesPage />)} />
+            <Route path="/items" element={adminRoute(<ItemsPage />)} />
+            <Route path="/items/new" element={adminRoute(<NewItemPage />)} />
+            <Route path="/items/:id" element={adminRoute(<ItemDetailPage />)} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <Toaster />

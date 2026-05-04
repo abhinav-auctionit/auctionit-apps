@@ -125,6 +125,104 @@
           }
         }
       ]
+    },
+    {
+      "name": "Taxonomy",
+      "description": "Categories, subcategories, attributes, items. All require admin session.",
+      "item": [
+        {
+          "name": "List categories (with counts)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/categories", "host": ["{{baseUrl}}"], "path": ["categories"] }
+          }
+        },
+        {
+          "name": "Create category",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/categories", "host": ["{{baseUrl}}"], "path": ["categories"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Ferrous\"\n}" }
+          }
+        },
+        {
+          "name": "Create subcategory",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/subcategories", "host": ["{{baseUrl}}"], "path": ["subcategories"] },
+            "body": { "mode": "raw", "raw": "{\n  \"categoryId\": \"<uuid>\",\n  \"name\": \"Steel scrap\"\n}" }
+          }
+        },
+        {
+          "name": "Suggested attributes for subcategory",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/subcategories/:id/suggested-attributes", "host": ["{{baseUrl}}"], "path": ["subcategories", ":id", "suggested-attributes"] }
+          }
+        },
+        {
+          "name": "List attributes",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/attributes", "host": ["{{baseUrl}}"], "path": ["attributes"] }
+          }
+        },
+        {
+          "name": "Create attribute",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/attributes", "host": ["{{baseUrl}}"], "path": ["attributes"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Surface condition\",\n  \"type\": \"single_select\",\n  \"description\": \"Mill scale, rusted, oiled\",\n  \"options\": [\"Mill scale, no rust\", \"Light surface rust\", \"Heavy rust\", \"Oiled\"]\n}"
+            },
+            "description": "type: text|number|single_select|multi_select. unit only meaningful for number. options required for select types. type is locked after creation."
+          }
+        },
+        {
+          "name": "List items (filterable)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/items?subcategoryId=",
+              "host": ["{{baseUrl}}"],
+              "path": ["items"],
+              "query": [
+                { "key": "subcategoryId", "value": "" },
+                { "key": "categoryId", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create item",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/items", "host": ["{{baseUrl}}"], "path": ["items"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subcategoryId\": \"<uuid>\",\n  \"name\": \"HR Coil End Cut\",\n  \"uom\": \"MT\",\n  \"hsnCode\": \"72082700\",\n  \"benchmarkCents\": 3800000\n}"
+            }
+          }
+        },
+        {
+          "name": "Add attribute value to item",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/items/:id/attribute-values", "host": ["{{baseUrl}}"], "path": ["items", ":id", "attribute-values"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attributeId\": \"<uuid>\",\n  \"valueNumber\": 3.5\n}"
+            },
+            "description": "Pass exactly one of attributeId (library) or customName (one-off). Provide one of valueText, valueNumber, valueOptionIds matching the attribute type."
+          }
+        }
+      ]
     }
   ]
 }

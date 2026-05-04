@@ -4,11 +4,12 @@ import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuctionsModule } from './modules/auctions/auctions.module';
+import { TaxonomyModule } from './modules/taxonomy/taxonomy.module';
 import { SessionAuthGuard } from './modules/auth/guards/session-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 
 @Module({
-  imports: [ConfigModule, DatabaseModule, AuthModule, AuctionsModule],
+  imports: [ConfigModule, DatabaseModule, AuthModule, AuctionsModule, TaxonomyModule],
   providers: [
     { provide: APP_GUARD, useClass: SessionAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },

@@ -1,46 +1,56 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@auction/auth';
-import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@auction/ui';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@auction/ui';
+import { AppShell } from '../components/AppShell';
+
+const sections = [
+  {
+    title: 'Categories',
+    description: 'Manage the 2-level category → subcategory hierarchy.',
+    to: '/taxonomy/categories',
+  },
+  {
+    title: 'Attributes',
+    description: 'The reusable attribute library used across items.',
+    to: '/taxonomy/attributes',
+  },
+  {
+    title: 'Items',
+    description: 'Catalog of sellable items, attached to a subcategory.',
+    to: '/items',
+  },
+  {
+    title: 'Create user',
+    description: 'Invite an admin, client, or bidder.',
+    to: '/users/new',
+  },
+];
 
 export function DashboardPage() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  async function onLogout() {
-    await logout();
-    navigate('/login', { replace: true });
-  }
-
+  const { user } = useAuth();
   if (!user) return null;
 
   return (
-    <main className="min-h-screen bg-background p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">Admin dashboard</h1>
-            <p className="text-sm text-muted-foreground">
-              Signed in as {user.name} <Badge variant="secondary" className="ml-1">{user.role}</Badge>
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={() => navigate('/users/new')}>Create user</Button>
-            <Button variant="outline" onClick={onLogout}>
-              Log out
-            </Button>
-          </div>
-        </header>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Welcome, {user.name.split(' ')[0]}</CardTitle>
-            <CardDescription>Operational tools and data live here.</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Hook this page up to your auctions, users, and audit data next.
-          </CardContent>
-        </Card>
+    <AppShell>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Welcome, {user.name.split(' ')[0]}</h1>
+          <p className="text-sm text-muted-foreground">Pick where you want to work.</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {sections.map((section) => (
+            <Link key={section.to} to={section.to} className="group">
+              <Card className="transition-colors group-hover:border-foreground/40">
+                <CardHeader>
+                  <CardTitle>{section.title}</CardTitle>
+                  <CardDescription>{section.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="text-sm text-primary">Open →</CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
       </div>
-    </main>
+    </AppShell>
   );
 }

@@ -15,6 +15,13 @@
       "when": 1777875875467,
       "tag": "0001_shiny_talisman",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777901102163,
+      "tag": "0002_harsh_freak",
+      "breakpoints": true
     }
   ]
 }

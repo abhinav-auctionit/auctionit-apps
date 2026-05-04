@@ -1,0 +1,7 @@
+/* Admin-only theme overrides — applied after @auction/ui/styles.css */
+:root,
+.dark {
+  --primary: 253 59% 46%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 253 59% 46%;
+}
