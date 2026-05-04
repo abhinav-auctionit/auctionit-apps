@@ -21,7 +21,12 @@ const NAV: NavItem[] = [
       { kind: 'leaf', label: 'Items', to: '/items' },
     ],
   },
-  { kind: 'leaf', label: 'Create user', to: '/users/new' },
+  {
+    kind: 'group',
+    label: 'Users',
+    basePaths: ['/users'],
+    children: [{ kind: 'leaf', label: 'Create user', to: '/users/new' }],
+  },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

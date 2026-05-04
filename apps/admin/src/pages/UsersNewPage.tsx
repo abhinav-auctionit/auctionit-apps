@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ApiError } from '@auction/api-client';
 import { useApiClient } from '@auction/auth';
 import { createUserSchema, type UserRole } from '@auction/types';
@@ -13,6 +13,7 @@ import {
   Input,
   Label,
 } from '@auction/ui';
+import { AppShell } from '../components/AppShell';
 
 export function UsersNewPage() {
   const api = useApiClient();
@@ -50,12 +51,9 @@ export function UsersNewPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background p-8">
+    <AppShell>
       <div className="mx-auto max-w-md space-y-4">
-        <div className="flex items-center justify-between">
-          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-            ← Back to dashboard
-          </Link>
+        <div className="flex items-center justify-end">
           <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
             Done
           </Button>
@@ -117,6 +115,6 @@ export function UsersNewPage() {
           </CardContent>
         </Card>
       </div>
-    </main>
+    </AppShell>
   );
 }
