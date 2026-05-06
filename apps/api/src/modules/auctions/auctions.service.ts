@@ -13,6 +13,25 @@ export class AuctionsService {
     });
   }
 
+  async listUpcomingPublic(limit = 24) {
+    const rows = await this.prisma.auction.findMany({
+      where: { status: { in: ['scheduled', 'live'] } },
+      orderBy: { startsAt: 'asc' },
+      take: limit,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        startingPriceCents: true,
+        currentPriceCents: true,
+        status: true,
+        startsAt: true,
+        endsAt: true,
+      },
+    });
+    return rows;
+  }
+
   async findOne(id: string) {
     const row = await this.prisma.auction.findUnique({
       where: { id },
