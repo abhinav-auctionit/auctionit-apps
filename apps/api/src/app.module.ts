@@ -1,15 +1,27 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from './config/config.module';
-import { DatabaseModule } from './database/database.module';
+import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuctionsModule } from './modules/auctions/auctions.module';
-import { TaxonomyModule } from './modules/taxonomy/taxonomy.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
+import { StorageModule } from './modules/storage/storage.module';
+import { FilesModule } from './modules/files/files.module';
+import { BidderModule } from './modules/bidder/bidder.module';
 import { SessionAuthGuard } from './modules/auth/guards/session-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 
 @Module({
-  imports: [ConfigModule, DatabaseModule, AuthModule, AuctionsModule, TaxonomyModule],
+  imports: [
+    ConfigModule,
+    PrismaModule,
+    StorageModule,
+    AuthModule,
+    AuctionsModule,
+    InventoryModule,
+    FilesModule,
+    BidderModule,
+  ],
   providers: [
     { provide: APP_GUARD, useClass: SessionAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },

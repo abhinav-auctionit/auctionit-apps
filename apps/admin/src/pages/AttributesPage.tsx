@@ -26,7 +26,7 @@ import {
 } from '@auction/ui';
 import { AppShell } from '../components/AppShell';
 
-const KEY = ['taxonomy', 'attributes'] as const;
+const KEY = ['inventory', 'attributes'] as const;
 
 const TYPES: { value: AttributeType; label: string }[] = [
   { value: 'text', label: 'Text' },
@@ -38,7 +38,7 @@ const TYPES: { value: AttributeType; label: string }[] = [
 export function AttributesPage() {
   const api = useApiClient();
   const qc = useQueryClient();
-  const attrs = useQuery({ queryKey: KEY, queryFn: () => api.taxonomy.listAttributes() });
+  const attrs = useQuery({ queryKey: KEY, queryFn: () => api.inventory.listAttributes() });
   const [filter, setFilter] = useState<AttributeType | 'all'>('all');
   const [open, setOpen] = useState(false);
 
@@ -179,7 +179,7 @@ function NewAttributeDialog({
 
   const mutation = useMutation({
     mutationFn: () =>
-      api.taxonomy.createAttribute({
+      api.inventory.createAttribute({
         name: name.trim(),
         type,
         unit: isNumber && unit.trim() ? unit.trim() : undefined,

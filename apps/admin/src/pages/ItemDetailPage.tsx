@@ -40,24 +40,24 @@ export function ItemDetailPage() {
   const navigate = useNavigate();
 
   const itemQuery = useQuery({
-    queryKey: ['taxonomy', 'item', id],
-    queryFn: () => api.taxonomy.getItem(id),
+    queryKey: ['inventory', 'item', id],
+    queryFn: () => api.inventory.getItem(id),
     enabled: !!id,
   });
   const attrsQuery = useQuery({
-    queryKey: ['taxonomy', 'attributes'],
-    queryFn: () => api.taxonomy.listAttributes(),
+    queryKey: ['inventory', 'attributes'],
+    queryFn: () => api.inventory.listAttributes(),
   });
 
   const [adderOpen, setAdderOpen] = useState<{ mode: 'library' | 'custom' } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const removeValue = useMutation({
-    mutationFn: (valueId: string) => api.taxonomy.removeAttributeValue(id, valueId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['taxonomy', 'item', id] }),
+    mutationFn: (valueId: string) => api.inventory.removeAttributeValue(id, valueId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', 'item', id] }),
   });
   const deleteItem = useMutation({
-    mutationFn: () => api.taxonomy.deleteItem(id),
+    mutationFn: () => api.inventory.deleteItem(id),
     onSuccess: () => navigate('/items', { replace: true }),
   });
 
@@ -185,7 +185,7 @@ export function ItemDetailPage() {
         onOpenChange={(o) => !o && setAdderOpen(null)}
         attributes={attrsQuery.data ?? []}
         attachedAttributeIds={attachedAttributeIds}
-        onAdded={() => qc.invalidateQueries({ queryKey: ['taxonomy', 'item', id] })}
+        onAdded={() => qc.invalidateQueries({ queryKey: ['inventory', 'item', id] })}
         itemId={id}
       />
 
@@ -277,7 +277,7 @@ function AddValueDialog({
     mutationFn: () => {
       if (mode === 'library') {
         if (!picked) throw new Error('Pick an attribute');
-        return api.taxonomy.addAttributeValue(itemId, {
+        return api.inventory.addAttributeValue(itemId, {
           attributeId: picked.id,
           valueText: picked.type === 'text' ? valueText : undefined,
           valueNumber: picked.type === 'number' ? Number(valueNumber) : undefined,
@@ -287,7 +287,7 @@ function AddValueDialog({
               : undefined,
         });
       }
-      return api.taxonomy.addAttributeValue(itemId, {
+      return api.inventory.addAttributeValue(itemId, {
         customName: customName.trim(),
         valueText: valueText.trim(),
       });

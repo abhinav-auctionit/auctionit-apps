@@ -1,0 +1,48 @@
+# Fly.io configuration for the @auction/api service.
+#
+# After `flyctl launch --copy-config --no-deploy`, set secrets:
+#
+#   flyctl secrets set \
+#     DATABASE_URL='postgres://...neon...?sslmode=require' \
+#     SESSION_COOKIE_NAME='auction_session' \
+#     COOKIE_DOMAIN='.auctionit.ai' \
+#     CORS_ORIGINS='https://auctionit.ai,https://app.auctionit.ai,https://bid.auctionit.ai,https://admin.auctionit.ai' \
+#     STORAGE_DRIVER=r2 \
+#     R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... R2_BUCKET=...
+#
+# Then `flyctl deploy`.
+
+app = "auction-api"
+primary_region = "bom"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+  DATABASE_SSL = "true"
+  STORAGE_LOCAL_DIR = "/data/uploads"
+
+# Run pending migrations as a one-off VM before traffic shifts to the new release.
+[deploy]
+  release_command = "./node_modules/.bin/prisma migrate deploy"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # Keep the machine running so WebSocket sessions don't drop.
+  auto_stop_machines = false
+  auto_start_machines = true
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/api/bidder/countries"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "512mb"

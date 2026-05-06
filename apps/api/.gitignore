@@ -1,0 +1,2 @@
+# Local file-storage driver writes here. Switched to R2 in staging/prod.
+uploads/

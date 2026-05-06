@@ -77,4 +77,24 @@ export class AppConfig {
       ttlDays: this.cs.get('SESSION_TTL_DAYS', { infer: true }),
     };
   }
+
+  get storage() {
+    const allowedMimeRaw = this.cs.get('STORAGE_ALLOWED_MIME', { infer: true }) ?? '';
+    return {
+      driver: this.cs.get('STORAGE_DRIVER', { infer: true }),
+      localDir: this.cs.get('STORAGE_LOCAL_DIR', { infer: true }),
+      maxUploadBytes: this.cs.get('STORAGE_MAX_UPLOAD_BYTES', { infer: true }),
+      allowedMime: allowedMimeRaw
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean),
+      r2: {
+        accountId: this.cs.get('R2_ACCOUNT_ID', { infer: true }),
+        accessKeyId: this.cs.get('R2_ACCESS_KEY_ID', { infer: true }),
+        secretAccessKey: this.cs.get('R2_SECRET_ACCESS_KEY', { infer: true }),
+        bucket: this.cs.get('R2_BUCKET', { infer: true }),
+        publicBaseUrl: this.cs.get('R2_PUBLIC_BASE_URL', { infer: true }),
+      },
+    };
+  }
 }

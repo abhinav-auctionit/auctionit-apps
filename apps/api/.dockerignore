@@ -1,0 +1,21 @@
+# --- ignored when building the API image ---
+
+# we COPY only the files we need in the Dockerfile, so this list is mainly
+# defensive against accidental "COPY ." additions later.
+
+**/node_modules
+**/dist
+**/build
+**/.turbo
+**/.next
+**/.astro
+**/coverage
+**/*.log
+**/.DS_Store
+
+# never ship local secrets or local-disk uploads
+**/.env
+**/.env.*
+!**/.env.example
+
+apps/api/uploads/

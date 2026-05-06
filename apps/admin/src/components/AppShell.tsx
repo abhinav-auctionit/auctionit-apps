@@ -13,11 +13,11 @@ const NAV: NavItem[] = [
   { kind: 'leaf', label: 'Home', to: '/', end: true },
   {
     kind: 'group',
-    label: 'Taxonomy',
-    basePaths: ['/taxonomy', '/items'],
+    label: 'Inventory',
+    basePaths: ['/inventory', '/items'],
     children: [
-      { kind: 'leaf', label: 'Categories', to: '/taxonomy/categories' },
-      { kind: 'leaf', label: 'Attributes', to: '/taxonomy/attributes' },
+      { kind: 'leaf', label: 'Categories', to: '/inventory/categories' },
+      { kind: 'leaf', label: 'Attributes', to: '/inventory/attributes' },
       { kind: 'leaf', label: 'Items', to: '/items' },
     ],
   },
@@ -26,6 +26,12 @@ const NAV: NavItem[] = [
     label: 'Users',
     basePaths: ['/users'],
     children: [{ kind: 'leaf', label: 'Create user', to: '/users/new' }],
+  },
+  {
+    kind: 'group',
+    label: 'Bidders',
+    basePaths: ['/bidders'],
+    children: [{ kind: 'leaf', label: 'Applications', to: '/bidders' }],
   },
 ];
 

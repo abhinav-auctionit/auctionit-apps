@@ -7,12 +7,12 @@ const sections = [
   {
     title: 'Categories',
     description: 'Manage the 2-level category → subcategory hierarchy.',
-    to: '/taxonomy/categories',
+    to: '/inventory/categories',
   },
   {
     title: 'Attributes',
     description: 'The reusable attribute library used across items.',
-    to: '/taxonomy/attributes',
+    to: '/inventory/attributes',
   },
   {
     title: 'Items',

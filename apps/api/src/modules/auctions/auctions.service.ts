@@ -1,38 +1,34 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { eq, desc } from 'drizzle-orm';
-import { DRIZZLE, type Database } from '../../database/database.module';
-import { auctions } from '../../database/schema';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
 import type { CreateAuctionDto } from './dto/create-auction.dto';
 
 @Injectable()
 export class AuctionsService {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async list() {
-    return this.db.query.auctions.findMany({
-      orderBy: [desc(auctions.startsAt)],
-      limit: 100,
+    return this.prisma.auction.findMany({
+      orderBy: { startsAt: 'desc' },
+      take: 100,
     });
   }
 
   async findOne(id: string) {
-    const row = await this.db.query.auctions.findFirst({
-      where: eq(auctions.id, id),
-      with: { seller: true },
+    const row = await this.prisma.auction.findUnique({
+      where: { id },
+      include: { seller: true },
     });
     if (!row) throw new NotFoundException(`auction ${id} not found`);
     return row;
   }
 
   async create(sellerId: string, dto: CreateAuctionDto) {
-    const [row] = await this.db
-      .insert(auctions)
-      .values({
+    return this.prisma.auction.create({
+      data: {
         ...dto,
         sellerId,
         currentPriceCents: dto.startingPriceCents,
-      })
-      .returning();
-    return row;
+      },
+    });
   }
 }

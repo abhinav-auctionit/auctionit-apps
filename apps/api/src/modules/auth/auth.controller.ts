@@ -1,14 +1,30 @@
-import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { CookieOptions, Request, Response } from 'express';
 import { AppConfig } from '../../config/app-config.service';
 import { AuthService } from './auth.service';
+import { OtpService } from './otp.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { OtpSendMobileDto } from './dto/otp-send-mobile.dto';
+import { OtpVerifyMobileDto } from './dto/otp-verify-mobile.dto';
+import { OtpSendEmailDto } from './dto/otp-send-email.dto';
+import { OtpVerifyEmailDto } from './dto/otp-verify-email.dto';
+import { BidderRegisterDto } from './dto/bidder-register.dto';
 import { SessionService, type SafeUser } from './session.service';
 
 @ApiTags('auth')
@@ -16,6 +32,7 @@ import { SessionService, type SafeUser } from './session.service';
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
+    private readonly otp: OtpService,
     private readonly sessions: SessionService,
     private readonly config: AppConfig,
   ) {}
@@ -40,6 +57,102 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<SafeUser> {
     const user = await this.auth.login(dto);
+    await this.startSession(user.id, req, res);
+    return user;
+  }
+
+  @Public()
+  @Post('login/email-otp/send')
+  @HttpCode(204)
+  async loginEmailOtpSend(@Body() dto: OtpSendEmailDto): Promise<void> {
+    await this.otp.send({ channel: 'email', target: dto.email, purpose: 'login' });
+  }
+
+  @Public()
+  @Post('login/email-otp/verify')
+  async loginEmailOtpVerify(
+    @Body() dto: OtpVerifyEmailDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<SafeUser> {
+    const user = await this.auth.findUserByEmailForOtp(dto.email);
+    if (!user) throw new UnauthorizedException('account not found');
+    await this.otp.verify({
+      channel: 'email',
+      target: dto.email,
+      purpose: 'login',
+      code: dto.code,
+    });
+    await this.startSession(user.id, req, res);
+    return user;
+  }
+
+  @Public()
+  @Post('login/mobile-otp/send')
+  @HttpCode(204)
+  async loginMobileOtpSend(@Body() dto: OtpSendMobileDto): Promise<void> {
+    await this.otp.send({
+      channel: 'mobile',
+      target: OtpService.mobileTarget(dto.mobileCountryCode, dto.mobileNumber),
+      purpose: 'login',
+    });
+  }
+
+  @Public()
+  @Post('login/mobile-otp/verify')
+  async loginMobileOtpVerify(
+    @Body() dto: OtpVerifyMobileDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<SafeUser> {
+    const user = await this.auth.findUserByMobileForOtp(
+      dto.mobileCountryCode,
+      dto.mobileNumber,
+    );
+    if (!user) throw new UnauthorizedException('account not found');
+    await this.otp.verify({
+      channel: 'mobile',
+      target: OtpService.mobileTarget(dto.mobileCountryCode, dto.mobileNumber),
+      purpose: 'login',
+      code: dto.code,
+    });
+    await this.startSession(user.id, req, res);
+    return user;
+  }
+
+  @Public()
+  @Post('bidder/otp/send')
+  @HttpCode(204)
+  async bidderOtpSend(@Body() dto: OtpSendMobileDto): Promise<void> {
+    await this.otp.send({
+      channel: 'mobile',
+      target: OtpService.mobileTarget(dto.mobileCountryCode, dto.mobileNumber),
+      purpose: 'bidder_register',
+    });
+  }
+
+  @Public()
+  @Post('bidder/otp/verify')
+  async bidderOtpVerify(
+    @Body() dto: OtpVerifyMobileDto,
+  ): Promise<{ verificationToken: string }> {
+    const challenge = await this.otp.verify({
+      channel: 'mobile',
+      target: OtpService.mobileTarget(dto.mobileCountryCode, dto.mobileNumber),
+      purpose: 'bidder_register',
+      code: dto.code,
+    });
+    return { verificationToken: challenge.id };
+  }
+
+  @Public()
+  @Post('bidder/register')
+  async bidderRegister(
+    @Body() dto: BidderRegisterDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<SafeUser> {
+    const user = await this.auth.registerBidder(dto);
     await this.startSession(user.id, req, res);
     return user;
   }

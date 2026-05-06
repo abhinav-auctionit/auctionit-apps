@@ -24,12 +24,12 @@ export function ItemsPage() {
   const categoryId = params.get('categoryId') ?? undefined;
 
   const cats = useQuery({
-    queryKey: ['taxonomy', 'categories'],
-    queryFn: () => api.taxonomy.listCategories(),
+    queryKey: ['inventory', 'categories'],
+    queryFn: () => api.inventory.listCategories(),
   });
   const items = useQuery({
-    queryKey: ['taxonomy', 'items', { subcategoryId, categoryId }],
-    queryFn: () => api.taxonomy.listItems({ subcategoryId, categoryId }),
+    queryKey: ['inventory', 'items', { subcategoryId, categoryId }],
+    queryFn: () => api.inventory.listItems({ subcategoryId, categoryId }),
   });
 
   const subcategoryName = useMemo(() => {

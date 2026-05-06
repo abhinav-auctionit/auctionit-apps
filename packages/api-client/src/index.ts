@@ -1,13 +1,27 @@
 import type {
   AttributeType,
+  BidderCountry,
+  BidderMarkFeePaidInput,
+  BidderProfilePatchInput,
+  BidderRegisterInput,
+  BidderRejectInput,
+  BidderStatus,
+  BusinessActivity,
+  CompanyType,
   CreateAttributeInput,
   CreateCategoryInput,
   CreateItemInput,
   CreateSubcategoryInput,
   CreateUserInput,
+  InterestedIn,
   ItemAttributeValueInput,
   LoginInput,
+  OtpSendEmailInput,
+  OtpSendMobileInput,
+  OtpVerifyEmailInput,
+  OtpVerifyMobileInput,
   RegisterInput,
+  SubscriptionType,
   Uom,
   UpdateAttributeInput,
   UpdateItemInput,
@@ -107,6 +121,85 @@ export type SuggestedAttributesResponse = {
   attributes: { id: string; name: string; type: AttributeType; unit: string | null; used: number }[];
 };
 
+export type StoredFile = {
+  id: string;
+  key: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedById: string | null;
+  createdAt: string;
+};
+
+export type CountriesResponse = Record<BidderCountry, string[]>;
+
+export type BidderProfile = {
+  id: string;
+  userId: string;
+  interestedIn: InterestedIn | null;
+  fullName: string | null;
+  contactCountryCode: string | null;
+  contactNumber: string | null;
+  whatsappCountryCode: string | null;
+  whatsappNumber: string | null;
+  companyName: string | null;
+  companyType: CompanyType | null;
+  businessActivity: BusinessActivity | null;
+  address: string | null;
+  country: BidderCountry | null;
+  state: string | null;
+  city: string | null;
+  pinCode: string | null;
+  designation: string | null;
+  secondaryNumber: string | null;
+  registeredEmail: string | null;
+  gst: string | null;
+  pan: string | null;
+  panCardFileId: string | null;
+  proofOfAddressFileId: string | null;
+  cancelledChequeFileId: string | null;
+  otherFileId: string | null;
+  bankAccountNumber: string | null;
+  bankName: string | null;
+  ifscCode: string | null;
+  termsAcceptedAt: string | null;
+  signatoryName: string | null;
+  signatoryDesignation: string | null;
+  signatoryPlace: string | null;
+  signatoryDate: string | null;
+  subscriptionType: SubscriptionType | null;
+  registrationFeePaid: boolean;
+  registrationFeePaidAt: string | null;
+  registrationFeeNote: string | null;
+  status: BidderStatus;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  rejectedAt: string | null;
+  rejectionNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BidderProfileWithUser = BidderProfile & {
+  user: { id: string; email: string; name: string };
+};
+
+export type BidderProfileDetail = BidderProfile & {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    mobileCountryCode: string | null;
+    mobileNumber: string | null;
+    role: 'admin' | 'client' | 'bidder';
+    createdAt: string;
+  };
+  panCardFile: StoredFile | null;
+  proofOfAddressFile: StoredFile | null;
+  cancelledChequeFile: StoredFile | null;
+  otherFile: StoredFile | null;
+};
+
 export function createApiClient({ baseUrl }: ApiClientOptions) {
   const json = (method: string, body?: unknown) => ({
     method,
@@ -123,8 +216,88 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
       me: () => request<User>(baseUrl, '/auth/me'),
       createUser: (body: CreateUserInput) =>
         request<User>(baseUrl, '/auth/users', json('POST', body)),
+
+      loginEmailOtpSend: (body: OtpSendEmailInput) =>
+        request<void>(baseUrl, '/auth/login/email-otp/send', json('POST', body)),
+      loginEmailOtpVerify: (body: OtpVerifyEmailInput) =>
+        request<User>(baseUrl, '/auth/login/email-otp/verify', json('POST', body)),
+
+      loginMobileOtpSend: (body: OtpSendMobileInput) =>
+        request<void>(baseUrl, '/auth/login/mobile-otp/send', json('POST', body)),
+      loginMobileOtpVerify: (body: OtpVerifyMobileInput) =>
+        request<User>(baseUrl, '/auth/login/mobile-otp/verify', json('POST', body)),
+
+      bidderOtpSend: (body: OtpSendMobileInput) =>
+        request<void>(baseUrl, '/auth/bidder/otp/send', json('POST', body)),
+      bidderOtpVerify: (body: OtpVerifyMobileInput) =>
+        request<{ verificationToken: string }>(
+          baseUrl,
+          '/auth/bidder/otp/verify',
+          json('POST', body),
+        ),
+      bidderRegister: (body: BidderRegisterInput) =>
+        request<User>(baseUrl, '/auth/bidder/register', json('POST', body)),
     },
-    taxonomy: {
+    bidder: {
+      countries: () => request<CountriesResponse>(baseUrl, '/bidder/countries'),
+      getMyProfile: () => request<BidderProfile>(baseUrl, '/bidder/me/profile'),
+      patchMyProfile: (body: BidderProfilePatchInput) =>
+        request<BidderProfile>(baseUrl, '/bidder/me/profile', json('PATCH', body)),
+      submitMyProfile: () =>
+        request<BidderProfile>(baseUrl, '/bidder/me/profile/submit', { method: 'POST' }),
+    },
+    files: {
+      upload: async (file: File): Promise<StoredFile> => {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch(`${baseUrl}/api/files`, {
+          method: 'POST',
+          credentials: 'include',
+          body: form,
+        });
+        const text = await res.text();
+        const payload = text ? JSON.parse(text) : null;
+        if (!res.ok) {
+          const message =
+            (payload && typeof payload === 'object' && 'message' in payload
+              ? String(payload.message)
+              : null) ||
+            res.statusText ||
+            'upload failed';
+          throw new ApiError(res.status, message, payload);
+        }
+        return payload as StoredFile;
+      },
+      get: (id: string) => request<StoredFile>(baseUrl, `/files/${id}`),
+      contentUrl: (id: string) => `${baseUrl}/api/files/${id}/content`,
+    },
+    adminBidders: {
+      list: (params: { status?: BidderStatus } = {}) => {
+        const qs = new URLSearchParams();
+        if (params.status) qs.set('status', params.status);
+        const suffix = qs.toString() ? `?${qs}` : '';
+        return request<BidderProfileWithUser[]>(baseUrl, `/admin/bidder-profiles${suffix}`);
+      },
+      get: (id: string) =>
+        request<BidderProfileDetail>(baseUrl, `/admin/bidder-profiles/${id}`),
+      markFeePaid: (id: string, body: BidderMarkFeePaidInput) =>
+        request<BidderProfile>(
+          baseUrl,
+          `/admin/bidder-profiles/${id}/mark-fee-paid`,
+          json('POST', body),
+        ),
+      approve: (id: string) =>
+        request<BidderProfile>(baseUrl, `/admin/bidder-profiles/${id}/approve`, {
+          method: 'POST',
+        }),
+      reject: (id: string, body: BidderRejectInput) =>
+        request<BidderProfile>(
+          baseUrl,
+          `/admin/bidder-profiles/${id}/reject`,
+          json('POST', body),
+        ),
+    },
+    inventory: {
       listCategories: () => request<CategoryWithSubcategories[]>(baseUrl, '/categories'),
       createCategory: (body: CreateCategoryInput) =>
         request<{ id: string; name: string }>(baseUrl, '/categories', json('POST', body)),

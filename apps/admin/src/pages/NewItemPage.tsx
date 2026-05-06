@@ -26,8 +26,8 @@ export function NewItemPage() {
   const api = useApiClient();
   const navigate = useNavigate();
   const cats = useQuery({
-    queryKey: ['taxonomy', 'categories'],
-    queryFn: () => api.taxonomy.listCategories(),
+    queryKey: ['inventory', 'categories'],
+    queryFn: () => api.inventory.listCategories(),
   });
 
   const [categoryId, setCategoryId] = useState('');
@@ -44,14 +44,14 @@ export function NewItemPage() {
   }, [cats.data, categoryId]);
 
   const suggestions = useQuery({
-    queryKey: ['taxonomy', 'suggestedAttributes', subcategoryId],
-    queryFn: () => api.taxonomy.suggestedAttributes(subcategoryId),
+    queryKey: ['inventory', 'suggestedAttributes', subcategoryId],
+    queryFn: () => api.inventory.suggestedAttributes(subcategoryId),
     enabled: !!subcategoryId,
   });
 
   const mutation = useMutation({
     mutationFn: () =>
-      api.taxonomy.createItem({
+      api.inventory.createItem({
         subcategoryId,
         name: name.trim(),
         uom,

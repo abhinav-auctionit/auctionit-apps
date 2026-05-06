@@ -1,10 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@auction/api-client';
 import { useApiClient } from '@auction/auth';
 import {
-  Badge,
   Button,
   Card,
   CardContent,
@@ -18,23 +17,33 @@ import {
   DialogTitle,
   Input,
   Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  cn,
 } from '@auction/ui';
 import { AppShell } from '../components/AppShell';
 
-const KEY = ['taxonomy', 'categories'] as const;
+const KEY = ['inventory', 'categories'] as const;
 
 export function CategoriesPage() {
   const api = useApiClient();
   const qc = useQueryClient();
-  const cats = useQuery({ queryKey: KEY, queryFn: () => api.taxonomy.listCategories() });
+  const cats = useQuery({ queryKey: KEY, queryFn: () => api.inventory.listCategories() });
 
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [openCat, setOpenCat] = useState(false);
-  const [openSub, setOpenSub] = useState<{ categoryId: string } | null>(null);
+  const [openSub, setOpenSub] = useState(false);
+
+  // Default-select the first category once data lands or current selection disappears.
+  useEffect(() => {
+    if (!cats.data || cats.data.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+    if (!selectedId || !cats.data.some((c) => c.id === selectedId)) {
+      setSelectedId(cats.data[0]!.id);
+    }
+  }, [cats.data, selectedId]);
+
+  const selected = cats.data?.find((c) => c.id === selectedId) ?? null;
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: KEY });
@@ -43,81 +52,126 @@ export function CategoriesPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">Categories</h1>
-            <p className="text-sm text-muted-foreground">
-              {cats.data
-                ? `${cats.data.length} categor${cats.data.length === 1 ? 'y' : 'ies'} · ${cats.data.reduce(
-                    (n, c) => n + c.subcategories.length,
-                    0,
-                  )} subcategories`
-                : 'Loading…'}
-            </p>
-          </div>
-          <Button onClick={() => setOpenCat(true)}>+ Add category</Button>
+        <div>
+          <h1 className="text-2xl font-semibold">Categories</h1>
+          <p className="text-sm text-muted-foreground">
+            {cats.data
+              ? `${cats.data.length} categor${cats.data.length === 1 ? 'y' : 'ies'} · ${cats.data.reduce(
+                  (n, c) => n + c.subcategories.length,
+                  0,
+                )} subcategories`
+              : 'Loading…'}
+          </p>
         </div>
 
-        {cats.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
         {cats.error && (
           <p className="text-sm text-destructive">
             {cats.error instanceof ApiError ? cats.error.message : 'Failed to load'}
           </p>
         )}
 
-        {cats.data && cats.data.length === 0 && (
+        <div className="grid gap-4 md:grid-cols-2">
           <Card>
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              No categories yet. Add one to get started.
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Categories</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 pt-0">
+              {cats.isLoading && (
+                <p className="px-2 py-1.5 text-sm text-muted-foreground">Loading…</p>
+              )}
+              {cats.data && cats.data.length === 0 && (
+                <p className="px-2 py-1.5 text-sm text-muted-foreground">No categories yet.</p>
+              )}
+              {cats.data?.map((c) => {
+                const active = c.id === selectedId;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setSelectedId(c.id)}
+                    className={cn(
+                      'flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors',
+                      active
+                        ? 'bg-primary/10 font-medium text-primary'
+                        : 'hover:bg-secondary',
+                    )}
+                  >
+                    <span className="truncate">{c.name}</span>
+                    <span
+                      className={cn(
+                        'shrink-0 text-xs',
+                        active ? 'text-primary/80' : 'text-muted-foreground',
+                      )}
+                    >
+                      {c.itemCount}
+                    </span>
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setOpenCat(true)}
+                className="mt-2 w-full rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                + Add category
+              </button>
             </CardContent>
           </Card>
-        )}
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {cats.data?.map((c) => (
-            <Card key={c.id}>
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-base">{c.name}</CardTitle>
-                <Badge variant="secondary">{c.itemCount} items</Badge>
-              </CardHeader>
-              <CardContent className="space-y-2 pt-0">
-                {c.subcategories.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No subcategories yet.</p>
-                )}
-                {c.subcategories.map((s) => (
-                  <Link
-                    key={s.id}
-                    to={`/items?subcategoryId=${s.id}`}
-                    className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-secondary"
-                  >
-                    <span>{s.name}</span>
-                    <span className="text-muted-foreground">{s.itemCount}</span>
-                  </Link>
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 w-full"
-                  onClick={() => setOpenSub({ categoryId: c.id })}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">
+                {selected ? `Subcategories of ${selected.name}` : 'Subcategories'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 pt-0">
+              {!selected && (
+                <p className="px-2 py-1.5 text-sm text-muted-foreground">
+                  Select a category to see its subcategories.
+                </p>
+              )}
+              {selected && selected.subcategories.length === 0 && (
+                <p className="px-2 py-1.5 text-sm text-muted-foreground">
+                  No subcategories yet.
+                </p>
+              )}
+              {selected?.subcategories.map((s) => (
+                <Link
+                  key={s.id}
+                  to={`/items?subcategoryId=${s.id}`}
+                  className="flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary"
+                >
+                  <span className="truncate">{s.name}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{s.itemCount}</span>
+                </Link>
+              ))}
+              {selected && (
+                <button
+                  type="button"
+                  onClick={() => setOpenSub(true)}
+                  className="mt-2 w-full rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                 >
                   + Add subcategory
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                </button>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
       <CategoryDialog
         open={openCat}
         onOpenChange={setOpenCat}
-        onCreated={invalidate}
+        onCreated={(id) => {
+          invalidate();
+          setSelectedId(id);
+        }}
       />
       <SubcategoryDialog
-        open={!!openSub}
-        categoryId={openSub?.categoryId ?? null}
-        categories={cats.data ?? []}
-        onOpenChange={(open) => !open && setOpenSub(null)}
+        open={openSub}
+        categoryId={selectedId}
+        categoryName={selected?.name ?? ''}
+        onOpenChange={setOpenSub}
         onCreated={invalidate}
       />
     </AppShell>
@@ -131,16 +185,16 @@ function CategoryDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated: () => void;
+  onCreated: (id: string) => void;
 }) {
   const api = useApiClient();
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const mutation = useMutation({
-    mutationFn: (n: string) => api.taxonomy.createCategory({ name: n }),
-    onSuccess: () => {
+    mutationFn: (n: string) => api.inventory.createCategory({ name: n }),
+    onSuccess: (created) => {
       setName('');
-      onCreated();
+      onCreated(created.id);
       onOpenChange(false);
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : 'Failed to create'),
@@ -183,26 +237,23 @@ function CategoryDialog({
 function SubcategoryDialog({
   open,
   categoryId,
-  categories,
+  categoryName,
   onOpenChange,
   onCreated,
 }: {
   open: boolean;
   categoryId: string | null;
-  categories: { id: string; name: string }[];
+  categoryName: string;
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
 }) {
   const api = useApiClient();
   const [name, setName] = useState('');
-  const [pickedCategoryId, setPickedCategoryId] = useState<string | null>(categoryId);
   const [error, setError] = useState<string | null>(null);
-
-  const effectiveCategoryId = pickedCategoryId ?? categoryId;
 
   const mutation = useMutation({
     mutationFn: (input: { categoryId: string; name: string }) =>
-      api.taxonomy.createSubcategory(input),
+      api.inventory.createSubcategory(input),
     onSuccess: () => {
       setName('');
       onCreated();
@@ -214,8 +265,8 @@ function SubcategoryDialog({
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!effectiveCategoryId || !name.trim()) return;
-    mutation.mutate({ categoryId: effectiveCategoryId, name: name.trim() });
+    if (!categoryId || !name.trim()) return;
+    mutation.mutate({ categoryId, name: name.trim() });
   }
 
   return (
@@ -223,26 +274,11 @@ function SubcategoryDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New subcategory</DialogTitle>
+          <DialogDescription>
+            {categoryName ? `Adding to ${categoryName}.` : 'Pick a category first.'}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Category</Label>
-            <Select
-              value={effectiveCategoryId ?? undefined}
-              onValueChange={(v) => setPickedCategoryId(v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
           <div className="space-y-2">
             <Label htmlFor="sub-name">Name</Label>
             <Input id="sub-name" value={name} onChange={(e) => setName(e.target.value)} required />
@@ -252,7 +288,7 @@ function SubcategoryDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending}>
+            <Button type="submit" disabled={mutation.isPending || !categoryId}>
               {mutation.isPending ? 'Creating…' : 'Create'}
             </Button>
           </DialogFooter>

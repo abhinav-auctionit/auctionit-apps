@@ -1,13 +1,23 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, createApiClient, type ApiClient } from '@auction/api-client';
-import type { LoginInput, RegisterInput, User } from '@auction/types';
+import type {
+  BidderRegisterInput,
+  LoginInput,
+  OtpVerifyEmailInput,
+  OtpVerifyMobileInput,
+  RegisterInput,
+  User,
+} from '@auction/types';
 
 export type AuthContextValue = {
   user: User | null;
   isLoading: boolean;
   login: (input: LoginInput) => Promise<User>;
+  loginEmailOtp: (input: OtpVerifyEmailInput) => Promise<User>;
+  loginMobileOtp: (input: OtpVerifyMobileInput) => Promise<User>;
   register: (input: RegisterInput) => Promise<User>;
+  registerBidder: (input: BidderRegisterInput) => Promise<User>;
   logout: () => Promise<void>;
 };
 
@@ -45,8 +55,23 @@ export function AuthProvider({
     onSuccess: (user) => qc.setQueryData(ME_KEY, user),
   });
 
+  const loginEmailOtpMutation = useMutation({
+    mutationFn: (input: OtpVerifyEmailInput) => api.auth.loginEmailOtpVerify(input),
+    onSuccess: (user) => qc.setQueryData(ME_KEY, user),
+  });
+
+  const loginMobileOtpMutation = useMutation({
+    mutationFn: (input: OtpVerifyMobileInput) => api.auth.loginMobileOtpVerify(input),
+    onSuccess: (user) => qc.setQueryData(ME_KEY, user),
+  });
+
   const registerMutation = useMutation({
     mutationFn: (input: RegisterInput) => api.auth.register(input),
+    onSuccess: (user) => qc.setQueryData(ME_KEY, user),
+  });
+
+  const registerBidderMutation = useMutation({
+    mutationFn: (input: BidderRegisterInput) => api.auth.bidderRegister(input),
     onSuccess: (user) => qc.setQueryData(ME_KEY, user),
   });
 
@@ -62,7 +87,10 @@ export function AuthProvider({
     user: meQuery.data ?? null,
     isLoading: meQuery.isLoading,
     login: (input) => loginMutation.mutateAsync(input),
+    loginEmailOtp: (input) => loginEmailOtpMutation.mutateAsync(input),
+    loginMobileOtp: (input) => loginMobileOtpMutation.mutateAsync(input),
     register: (input) => registerMutation.mutateAsync(input),
+    registerBidder: (input) => registerBidderMutation.mutateAsync(input),
     logout: async () => {
       await logoutMutation.mutateAsync();
     },

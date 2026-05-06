@@ -1,0 +1,367 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  client
+  bidder
+
+  @@map("user_role")
+}
+
+enum AuctionStatus {
+  draft
+  scheduled
+  live
+  ended
+  cancelled
+
+  @@map("auction_status")
+}
+
+enum AttributeType {
+  text
+  number
+  single_select
+  multi_select
+
+  @@map("attribute_type")
+}
+
+enum Uom {
+  MT
+  KG
+  NOS
+  PCS
+  LTR
+  BAG
+  CUM
+  BOX
+
+  @@map("uom")
+}
+
+enum InterestedIn {
+  forward
+  reverse
+  both
+
+  @@map("interested_in")
+}
+
+enum CompanyType {
+  llp
+  llc
+  individual
+  limited
+  partnership
+  pvt_limited
+  sole_proprietorship
+
+  @@map("company_type")
+}
+
+enum BusinessActivity {
+  broker
+  end_user
+  trader
+  other
+
+  @@map("business_activity")
+}
+
+enum SubscriptionType {
+  annual
+  lifetime
+
+  @@map("subscription_type")
+}
+
+enum BidderStatus {
+  draft
+  pending_approval
+  approved
+  rejected
+
+  @@map("bidder_status")
+}
+
+enum OtpChannel {
+  mobile
+  email
+
+  @@map("otp_channel")
+}
+
+model User {
+  id                String   @id @default(uuid()) @db.Uuid
+  email             String   @unique @db.VarChar(255)
+  name              String   @db.VarChar(255)
+  passwordHash      String   @map("password_hash") @db.VarChar(255)
+  mobileCountryCode String?  @map("mobile_country_code") @db.VarChar(8)
+  mobileNumber      String?  @map("mobile_number") @db.VarChar(20)
+  role              UserRole @default(bidder)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sessions      Session[]
+  auctions      Auction[]
+  bids          Bid[]
+  uploadedFiles StoredFile[]
+  bidderProfile BidderProfile?
+
+  @@unique([mobileCountryCode, mobileNumber], map: "users_mobile_unique")
+  @@map("users")
+}
+
+model BidderProfile {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @map("user_id") @db.Uuid
+
+  // Personal
+  interestedIn        InterestedIn @map("interested_in")
+  fullName            String       @map("full_name") @db.VarChar(255)
+  contactCountryCode  String       @map("contact_country_code") @db.VarChar(8)
+  contactNumber       String       @map("contact_number") @db.VarChar(20)
+  whatsappCountryCode String       @map("whatsapp_country_code") @db.VarChar(8)
+  whatsappNumber      String       @map("whatsapp_number") @db.VarChar(20)
+
+  // Company (nullable until wizard step 2 saves)
+  companyName      String?           @map("company_name") @db.VarChar(255)
+  companyType      CompanyType?      @map("company_type")
+  businessActivity BusinessActivity? @map("business_activity")
+  address          String?           @db.Text
+  country          String?           @db.VarChar(64)
+  state            String?           @db.VarChar(128)
+  city             String?           @db.VarChar(128)
+  pinCode          String?           @map("pin_code") @db.VarChar(16)
+  designation      String?           @db.VarChar(128)
+  secondaryNumber  String?           @map("secondary_number") @db.VarChar(32)
+  registeredEmail  String?           @map("registered_email") @db.VarChar(255)
+  gst              String?           @db.VarChar(32)
+  pan              String?           @db.VarChar(16)
+
+  // Documents
+  panCardFileId         String? @map("pan_card_file_id") @db.Uuid
+  proofOfAddressFileId  String? @map("proof_of_address_file_id") @db.Uuid
+  cancelledChequeFileId String? @map("cancelled_cheque_file_id") @db.Uuid
+  otherFileId           String? @map("other_file_id") @db.Uuid
+  bankAccountNumber     String? @map("bank_account_number") @db.VarChar(64)
+  bankName              String? @map("bank_name") @db.VarChar(255)
+  ifscCode              String? @map("ifsc_code") @db.VarChar(16)
+
+  // Terms
+  termsAcceptedAt      DateTime? @map("terms_accepted_at") @db.Timestamptz(6)
+  signatoryName        String?   @map("signatory_name") @db.VarChar(255)
+  signatoryDesignation String?   @map("signatory_designation") @db.VarChar(128)
+  signatoryPlace       String?   @map("signatory_place") @db.VarChar(128)
+  signatoryDate        DateTime? @map("signatory_date") @db.Date
+
+  // Payment (offline)
+  subscriptionType      SubscriptionType? @map("subscription_type")
+  registrationFeePaid   Boolean           @default(false) @map("registration_fee_paid")
+  registrationFeePaidAt DateTime?         @map("registration_fee_paid_at") @db.Timestamptz(6)
+  registrationFeeNote   String?           @map("registration_fee_note") @db.Text
+
+  // Workflow
+  status        BidderStatus @default(draft)
+  submittedAt   DateTime?    @map("submitted_at") @db.Timestamptz(6)
+  approvedAt    DateTime?    @map("approved_at") @db.Timestamptz(6)
+  rejectedAt    DateTime?    @map("rejected_at") @db.Timestamptz(6)
+  rejectionNote String?      @map("rejection_note") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  panCardFile         StoredFile? @relation("BidderPanCard", fields: [panCardFileId], references: [id], onDelete: SetNull)
+  proofOfAddressFile  StoredFile? @relation("BidderProofOfAddress", fields: [proofOfAddressFileId], references: [id], onDelete: SetNull)
+  cancelledChequeFile StoredFile? @relation("BidderCancelledCheque", fields: [cancelledChequeFileId], references: [id], onDelete: SetNull)
+  otherFile           StoredFile? @relation("BidderOther", fields: [otherFileId], references: [id], onDelete: SetNull)
+
+  @@index([status], map: "bidder_profiles_status_idx")
+  @@map("bidder_profiles")
+}
+
+model OtpChallenge {
+  id         String     @id @default(uuid()) @db.Uuid
+  channel    OtpChannel
+  target     String     @db.VarChar(255)
+  codeHash   String     @map("code_hash") @db.VarChar(255)
+  purpose    String     @db.VarChar(64)
+  attempts   Int        @default(0)
+  expiresAt  DateTime   @map("expires_at") @db.Timestamptz(6)
+  consumedAt DateTime?  @map("consumed_at") @db.Timestamptz(6)
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([channel, target], map: "otp_challenges_target_idx")
+  @@index([expiresAt], map: "otp_challenges_expires_idx")
+  @@map("otp_challenges")
+}
+
+model StoredFile {
+  id           String   @id @default(uuid()) @db.Uuid
+  key          String   @unique @db.VarChar(512)
+  originalName String   @map("original_name") @db.VarChar(512)
+  mimeType     String   @map("mime_type") @db.VarChar(127)
+  sizeBytes    Int      @map("size_bytes")
+  uploadedById String?  @map("uploaded_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  uploadedBy              User?           @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  bidderPanCardOf         BidderProfile[] @relation("BidderPanCard")
+  bidderProofOfAddressOf  BidderProfile[] @relation("BidderProofOfAddress")
+  bidderCancelledChequeOf BidderProfile[] @relation("BidderCancelledCheque")
+  bidderOtherOf           BidderProfile[] @relation("BidderOther")
+
+  @@index([uploadedById], map: "stored_files_uploader_idx")
+  @@map("stored_files")
+}
+
+model Session {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  userAgent  String?   @map("user_agent")
+  ipAddress  String?   @map("ip_address") @db.VarChar(64)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "sessions_user_idx")
+  @@index([expiresAt], map: "sessions_expires_idx")
+  @@map("sessions")
+}
+
+model Auction {
+  id                 String        @id @default(uuid()) @db.Uuid
+  title              String        @db.VarChar(255)
+  description        String?
+  startingPriceCents Int           @map("starting_price_cents")
+  currentPriceCents  Int           @map("current_price_cents")
+  bidIncrementCents  Int           @default(100) @map("bid_increment_cents")
+  status             AuctionStatus @default(draft)
+  startsAt           DateTime      @map("starts_at") @db.Timestamptz(6)
+  endsAt             DateTime      @map("ends_at") @db.Timestamptz(6)
+  sellerId           String        @map("seller_id") @db.Uuid
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  seller User  @relation(fields: [sellerId], references: [id])
+  bids   Bid[]
+
+  @@map("auctions")
+}
+
+model Bid {
+  id          String   @id @default(uuid()) @db.Uuid
+  auctionId   String   @map("auction_id") @db.Uuid
+  bidderId    String   @map("bidder_id") @db.Uuid
+  amountCents Int      @map("amount_cents")
+  placedAt    DateTime @default(now()) @map("placed_at") @db.Timestamptz(6)
+
+  auction Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  bidder  User    @relation(fields: [bidderId], references: [id])
+
+  @@index([auctionId, placedAt(sort: Desc)], map: "bids_auction_idx")
+  @@index([bidderId], map: "bids_bidder_idx")
+  @@map("bids")
+}
+
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique @db.VarChar(255)
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  subcategories Subcategory[]
+
+  @@map("categories")
+}
+
+model Subcategory {
+  id         String   @id @default(uuid()) @db.Uuid
+  categoryId String   @map("category_id") @db.Uuid
+  name       String   @db.VarChar(255)
+  position   Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  items    Item[]
+
+  @@unique([categoryId, name], map: "subcategories_category_id_name_unique")
+  @@map("subcategories")
+}
+
+model Attribute {
+  id          String        @id @default(uuid()) @db.Uuid
+  name        String        @unique @db.VarChar(255)
+  type        AttributeType
+  unit        String?       @db.VarChar(32)
+  description String?
+  position    Int           @default(0)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  options             AttributeOption[]
+  itemAttributeValues ItemAttributeValue[]
+
+  @@map("attributes")
+}
+
+model AttributeOption {
+  id          String   @id @default(uuid()) @db.Uuid
+  attributeId String   @map("attribute_id") @db.Uuid
+  value       String   @db.VarChar(255)
+  position    Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  attribute Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@unique([attributeId, value], map: "attribute_options_attribute_id_value_unique")
+  @@map("attribute_options")
+}
+
+model Item {
+  id             String   @id @default(uuid()) @db.Uuid
+  subcategoryId  String   @map("subcategory_id") @db.Uuid
+  name           String   @db.VarChar(255)
+  uom            Uom
+  hsnCode        String?  @map("hsn_code") @db.VarChar(8)
+  benchmarkCents Int?     @map("benchmark_cents")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  subcategory     Subcategory          @relation(fields: [subcategoryId], references: [id], onDelete: NoAction)
+  attributeValues ItemAttributeValue[]
+
+  @@map("items")
+}
+
+model ItemAttributeValue {
+  id             String   @id @default(uuid()) @db.Uuid
+  itemId         String   @map("item_id") @db.Uuid
+  attributeId    String?  @map("attribute_id") @db.Uuid
+  customName     String?  @map("custom_name") @db.VarChar(255)
+  valueText      String?  @map("value_text")
+  valueNumber    Decimal? @map("value_number") @db.Decimal(14, 4)
+  valueOptionIds String[] @map("value_option_ids") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  item      Item       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  attribute Attribute? @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, attributeId], map: "item_attribute_values_item_id_attribute_id_unique")
+  @@map("item_attribute_values")
+}
