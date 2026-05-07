@@ -8,12 +8,36 @@ const links = [
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
 ];
+
 const bidderUrl = import.meta.env.PUBLIC_BIDDER_URL ?? 'https://bid.auctionit.ai';
+const clientUrl = import.meta.env.PUBLIC_APP_URL ?? 'https://app.auctionit.ai';
+
+const audienceMenus = [
+  {
+    id: 'bidders',
+    label: 'For Bidders',
+    blurb: 'Buy industrial materials at competitive prices.',
+    items: [
+      { label: 'Sign in', href: bidderUrl, kind: 'link' as const },
+      { label: 'Register as a Bidder', href: `${bidderUrl}/register`, kind: 'cta' as const },
+    ],
+  },
+  {
+    id: 'clients',
+    label: 'For Clients',
+    blurb: 'Sell scrap, surplus, or run procurement auctions.',
+    items: [
+      { label: 'Sign in', href: clientUrl, kind: 'link' as const },
+      { label: 'Talk to sales', href: '/contact', kind: 'cta' as const },
+    ],
+  },
+];
+
 const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
 ---
 
 <header
-  class="sticky top-0 z-40 bg-primary text-primary-foreground"
+  class="sticky top-0 z-40 text-primary-foreground"
   style="background: hsl(218 50% 12%);"
 >
   <div class="mx-auto flex h-14 max-w-6xl items-center justify-between gap-6 px-6">
@@ -60,20 +84,106 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
       }
     </nav>
 
-    <div class="flex items-center gap-3">
-      <a
-        href={`${bidderUrl}/register`}
-        class="hidden text-sm font-medium text-primary-foreground/55 transition-colors hover:text-primary-foreground sm:inline-flex"
-      >
-        Register
-      </a>
-      <a
-        href={bidderUrl}
-        class="inline-flex items-center rounded-md px-3.5 py-1.5 text-sm font-semibold transition hover:opacity-90"
-        style="background: hsl(var(--brand-mint)); color: hsl(var(--brand-mint-fg));"
-      >
-        Sign in
-      </a>
+    <div class="flex items-center gap-2">
+      {
+        audienceMenus.map((m) => (
+          <details class="audience-menu relative" data-audience-menu>
+            <summary
+              class="flex cursor-pointer list-none items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-primary-foreground/85 transition hover:bg-primary-foreground/10 hover:text-primary-foreground"
+              aria-haspopup="menu"
+            >
+              <span class="hidden sm:inline">{m.label}</span>
+              <span class="sm:hidden">{m.label.replace('For ', '')}</span>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="h-3.5 w-3.5 transition-transform"
+                aria-hidden="true"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </summary>
+            <div
+              class="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-lg border border-border bg-card text-foreground shadow-lg"
+              role="menu"
+            >
+              <div class="border-b border-border px-4 py-3">
+                <p class="text-sm font-semibold">{m.label}</p>
+                <p class="mt-0.5 text-xs text-muted-foreground">{m.blurb}</p>
+              </div>
+              <ul class="p-2">
+                {m.items.map((item) => (
+                  <li>
+                    <a
+                      href={item.href}
+                      role="menuitem"
+                      class:list={[
+                        'flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors',
+                        item.kind === 'cta'
+                          ? 'font-medium hover:bg-secondary'
+                          : 'text-foreground hover:bg-secondary',
+                      ]}
+                      style={
+                        item.kind === 'cta'
+                          ? 'color: hsl(var(--brand-mint-strong))'
+                          : ''
+                      }
+                    >
+                      <span>{item.label}</span>
+                      <span class="text-muted-foreground" aria-hidden="true">
+                        →
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </details>
+        ))
+      }
     </div>
   </div>
 </header>
+
+<style is:global>
+  /* Hide the default disclosure marker that <summary> renders */
+  details[data-audience-menu] > summary::-webkit-details-marker {
+    display: none;
+  }
+  details[data-audience-menu] > summary {
+    list-style: none;
+  }
+  details[data-audience-menu][open] > summary svg {
+    transform: rotate(180deg);
+  }
+</style>
+
+<script>
+  // Close any open audience-menu when clicking outside, pressing Escape,
+  // or opening the other one.
+  const menus = document.querySelectorAll<HTMLDetailsElement>('details[data-audience-menu]');
+
+  document.addEventListener('click', (e) => {
+    const target = e.target as Node;
+    menus.forEach((d) => {
+      if (d.open && !d.contains(target)) d.open = false;
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') menus.forEach((d) => (d.open = false));
+  });
+
+  menus.forEach((d) => {
+    d.addEventListener('toggle', () => {
+      if (!d.open) return;
+      menus.forEach((other) => {
+        if (other !== d) other.open = false;
+      });
+    });
+  });
+</script>
