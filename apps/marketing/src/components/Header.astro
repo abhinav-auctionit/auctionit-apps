@@ -1,32 +1,45 @@
 ---
 const links = [
-  { href: '/forward-auction', label: 'Forward Auction' },
-  { href: '/reverse-auction', label: 'Reverse Auction' },
+  { href: '/auctions', label: 'Live auctions' },
+  { href: '/forward-auction', label: 'Forward' },
+  { href: '/reverse-auction', label: 'Reverse' },
   { href: '/materials', label: 'Materials' },
   { href: '/platform', label: 'Platform' },
-  { href: '/auctions', label: 'Live Auctions' },
   { href: '/about', label: 'About' },
+  { href: '/contact', label: 'Contact' },
 ];
 const bidderUrl = import.meta.env.PUBLIC_BIDDER_URL ?? 'https://bid.auctionit.ai';
 const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
 ---
 
-<header class="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
-  <div class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-6">
-    <a href="/" class="flex items-center gap-2 font-semibold tracking-tight">
+<header
+  class="sticky top-0 z-40 bg-primary text-primary-foreground"
+  style="background: hsl(218 50% 12%);"
+>
+  <div class="mx-auto flex h-14 max-w-6xl items-center justify-between gap-6 px-6">
+    <a href="/" class="flex items-center gap-2 text-base font-semibold tracking-tight">
       <span
-        class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground"
+        class="inline-flex h-6 w-6 items-center justify-center rounded-md"
+        style="background: hsl(var(--brand-mint)); color: hsl(var(--brand-mint-fg));"
         aria-hidden="true"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="h-3.5 w-3.5"
+        >
           <path d="M14 4l6 6-9 9H5v-6z" />
           <path d="M3 21h18" />
         </svg>
       </span>
-      <span class="text-base">Auction-it</span>
+      <span>AuctionIt</span>
     </a>
 
-    <nav class="hidden items-center gap-1 md:flex">
+    <nav class="hidden items-center gap-6 md:flex">
       {
         links.map((l) => {
           const active = currentPath === l.href;
@@ -34,10 +47,10 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
             <a
               href={l.href}
               class:list={[
-                'rounded-md px-3 py-1.5 text-sm transition-colors',
+                'text-sm transition-colors',
                 active
-                  ? 'bg-secondary text-foreground'
-                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                  ? 'font-semibold text-primary-foreground'
+                  : 'text-primary-foreground/55 hover:text-primary-foreground',
               ]}
             >
               {l.label}
@@ -47,16 +60,17 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
       }
     </nav>
 
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-3">
       <a
-        href="/contact"
-        class="hidden rounded-md px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary md:inline-flex"
+        href={`${bidderUrl}/register`}
+        class="hidden text-sm font-medium text-primary-foreground/55 transition-colors hover:text-primary-foreground sm:inline-flex"
       >
-        Contact
+        Register
       </a>
       <a
         href={bidderUrl}
-        class="inline-flex items-center rounded-md bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+        class="inline-flex items-center rounded-md px-3.5 py-1.5 text-sm font-semibold transition hover:opacity-90"
+        style="background: hsl(var(--brand-mint)); color: hsl(var(--brand-mint-fg));"
       >
         Sign in
       </a>
