@@ -8,6 +8,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { FilesModule } from './modules/files/files.module';
 import { BidderModule } from './modules/bidder/bidder.module';
+import { HealthModule } from './modules/health/health.module';
 import { SessionAuthGuard } from './modules/auth/guards/session-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 
@@ -21,6 +22,7 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
     InventoryModule,
     FilesModule,
     BidderModule,
+    HealthModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: SessionAuthGuard },
