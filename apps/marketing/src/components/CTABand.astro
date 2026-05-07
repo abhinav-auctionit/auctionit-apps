@@ -1,0 +1,66 @@
+---
+export interface CTAButton {
+  href: string;
+  label: string;
+  variant?: 'primary' | 'secondary' | 'mint';
+}
+
+export interface Props {
+  eyebrow?: string;
+  title: string;
+  body?: string;
+  buttons: CTAButton[];
+  tone?: 'default' | 'navy';
+}
+
+const { eyebrow, title, body, buttons, tone = 'navy' } = Astro.props;
+const onNavy = tone === 'navy';
+---
+
+<section class:list={['py-16', onNavy ? 'bg-primary text-primary-foreground' : 'bg-secondary']}>
+  <div class="mx-auto max-w-4xl px-6 text-center">
+    {eyebrow && (
+      <p
+        class="text-xs font-semibold uppercase tracking-wider"
+        style={onNavy ? 'color: hsl(var(--brand-mint))' : 'color: hsl(var(--brand-mint-strong))'}
+      >
+        {eyebrow}
+      </p>
+    )}
+    <h2 class="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h2>
+    {body && (
+      <p
+        class:list={['mt-3 text-base leading-relaxed', onNavy ? 'text-primary-foreground/80' : 'text-muted-foreground']}
+      >
+        {body}
+      </p>
+    )}
+    <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+      {
+        buttons.map((b) => {
+          const isMint = b.variant === 'mint';
+          const isPrimary = b.variant === 'primary' || (!b.variant && onNavy);
+          const isSecondary = b.variant === 'secondary' || (!b.variant && !onNavy);
+          return (
+            <a
+              href={b.href}
+              class:list={[
+                'inline-flex items-center justify-center rounded-md px-5 py-2.5 text-sm font-medium transition',
+                isMint && 'hover:opacity-90',
+                isPrimary &&
+                  (onNavy
+                    ? 'border border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20'
+                    : 'bg-primary text-primary-foreground hover:opacity-90'),
+                isSecondary &&
+                  'border border-border bg-card text-foreground hover:bg-secondary',
+              ]}
+              style={isMint ? 'background: hsl(var(--brand-mint)); color: hsl(var(--brand-mint-fg))' : ''}
+            >
+              {b.label}
+            </a>
+          );
+        })
+      }
+    </div>
+  </div>
+</section>

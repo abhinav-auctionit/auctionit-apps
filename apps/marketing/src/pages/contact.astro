@@ -1,0 +1,105 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Section from '../components/Section.astro';
+import StepList from '../components/StepList.astro';
+
+const bidderUrl = import.meta.env.PUBLIC_BIDDER_URL ?? 'https://bid.auctionit.ai';
+
+const contacts = [
+  { label: 'Website', value: 'www.auctionit.in', href: 'https://www.auctionit.in' },
+  { label: 'General Enquiries', value: 'info@auctionit.in', href: 'mailto:info@auctionit.in' },
+  { label: 'Sales', value: 'prashant.bal@jindalx.com', href: 'mailto:prashant.bal@jindalx.com' },
+  { label: 'Phone', value: '+91 99358 89777', href: 'tel:+919935889777' },
+  { label: 'Feedback', value: 'feedback@auctionit.in', href: 'mailto:feedback@auctionit.in' },
+  { label: 'WhatsApp', value: 'Join our channel', href: '#' },
+  { label: 'LinkedIn', value: 'Auction-it on LinkedIn', href: '#' },
+  { label: 'Address', value: '28, Shivaji Marg, New Delhi 110015, India', href: null },
+];
+
+const expectations = [
+  {
+    title: 'Understand your need',
+    body:
+      "We'll get specifics on what material you're looking to auction (or buy), so the conversation is concrete from minute one.",
+  },
+  {
+    title: 'Share relevant history',
+    body:
+      "We'll walk through past auctions in your category and the price range to expect — no guesswork, just data.",
+  },
+  {
+    title: 'Demo the platform',
+    body:
+      "A live walkthrough of the platform and process, including the dashboards you'd be using.",
+  },
+  {
+    title: 'Set up first auction or registration',
+    body:
+      'Most clients run their first auction or complete bidder registration within 24–48 hours of the conversation.',
+  },
+];
+---
+
+<BaseLayout
+  title="Contact Auction-it | Request a Demo or Consultation"
+  description="Get in touch with Auction-it to learn how we can help you maximize recovery value on scrap and surplus materials. New Delhi, India."
+>
+  <Section
+    eyebrow="Get in touch"
+    title="We're ready when you are."
+    lead="Whether you're ready to run your first auction, want to register as a bidder, or just want to understand whether Auction-it is the right fit for your organization — our team is ready to help."
+  >
+    <div class="grid gap-6 md:grid-cols-[3fr_2fr]">
+      <div class="surface-card p-6">
+        <h3 class="text-base font-semibold">Direct contact</h3>
+        <dl class="mt-4 space-y-3 text-sm">
+          {
+            contacts.map((c) => (
+              <div class="grid grid-cols-[8rem_1fr] gap-3 sm:grid-cols-[10rem_1fr]">
+                <dt class="text-muted-foreground">{c.label}</dt>
+                <dd>
+                  {c.href ? (
+                    <a href={c.href} class="text-foreground hover:underline">
+                      {c.value}
+                    </a>
+                  ) : (
+                    <span class="text-foreground">{c.value}</span>
+                  )}
+                </dd>
+              </div>
+            ))
+          }
+        </dl>
+      </div>
+      <div class="surface-card p-6">
+        <h3 class="text-base font-semibold">Quick actions</h3>
+        <p class="mt-2 text-sm text-muted-foreground">Skip the form, jump straight in.</p>
+        <div class="mt-5 flex flex-col gap-3">
+          <a
+            href={`${bidderUrl}/register`}
+            class="inline-flex items-center justify-center rounded-md px-4 py-2.5 text-sm font-medium transition hover:opacity-90"
+            style="background: hsl(var(--brand-mint)); color: hsl(var(--brand-mint-fg))"
+          >
+            Register as a Bidder
+          </a>
+          <a
+            href="mailto:prashant.bal@jindalx.com?subject=Auction-it%20Seller%20Enquiry"
+            class="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+          >
+            Register as a Seller / Client
+          </a>
+          <a
+            href="mailto:info@auctionit.in?subject=Auction-it%20Demo%20Request"
+            class="inline-flex items-center justify-center rounded-md border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-secondary"
+          >
+            Request a Demo
+          </a>
+        </div>
+      </div>
+    </div>
+  </Section>
+
+  <Section tone="muted" eyebrow="What to expect" title="Here's what happens after you reach out">
+    <StepList steps={expectations} />
+  </Section>
+</BaseLayout>

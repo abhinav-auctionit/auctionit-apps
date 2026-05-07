@@ -1,0 +1,65 @@
+---
+const links = [
+  { href: '/forward-auction', label: 'Forward Auction' },
+  { href: '/reverse-auction', label: 'Reverse Auction' },
+  { href: '/materials', label: 'Materials' },
+  { href: '/platform', label: 'Platform' },
+  { href: '/auctions', label: 'Live Auctions' },
+  { href: '/about', label: 'About' },
+];
+const bidderUrl = import.meta.env.PUBLIC_BIDDER_URL ?? 'https://bid.auctionit.ai';
+const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
+---
+
+<header class="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
+  <div class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-6">
+    <a href="/" class="flex items-center gap-2 font-semibold tracking-tight">
+      <span
+        class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground"
+        aria-hidden="true"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+          <path d="M14 4l6 6-9 9H5v-6z" />
+          <path d="M3 21h18" />
+        </svg>
+      </span>
+      <span class="text-base">Auction-it</span>
+    </a>
+
+    <nav class="hidden items-center gap-1 md:flex">
+      {
+        links.map((l) => {
+          const active = currentPath === l.href;
+          return (
+            <a
+              href={l.href}
+              class:list={[
+                'rounded-md px-3 py-1.5 text-sm transition-colors',
+                active
+                  ? 'bg-secondary text-foreground'
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+              ]}
+            >
+              {l.label}
+            </a>
+          );
+        })
+      }
+    </nav>
+
+    <div class="flex items-center gap-2">
+      <a
+        href="/contact"
+        class="hidden rounded-md px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary md:inline-flex"
+      >
+        Contact
+      </a>
+      <a
+        href={bidderUrl}
+        class="inline-flex items-center rounded-md bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+      >
+        Sign in
+      </a>
+    </div>
+  </div>
+</header>

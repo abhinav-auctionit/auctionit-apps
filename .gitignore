@@ -21,3 +21,7 @@ coverage
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+.tmp/
+.tmp/
+.tmp/
+.tmp/

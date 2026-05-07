@@ -1,0 +1,211 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Section from '../components/Section.astro';
+import FeatureCard from '../components/FeatureCard.astro';
+import CTABand from '../components/CTABand.astro';
+
+const techFeatures = [
+  {
+    title: 'AI-Powered Pricing Engine',
+    body:
+      'Predictive pricing using regression and neural networks delivers up to 99% accuracy in price forecasting. Our algorithms analyze historical transactions, live market trends, and material-specific parameters to recommend optimal reserve prices.',
+    icon: 'sparkles' as const,
+  },
+  {
+    title: 'ERP & SAP Integration',
+    body:
+      'Real-time sync with SAP and other enterprise systems. Material data, inventory levels, and transaction records flow automatically — no manual data entry, no reconciliation errors.',
+    icon: 'plug' as const,
+  },
+  {
+    title: 'API Automation',
+    body:
+      'Fully automated workflows from auction creation to result declaration. Robust APIs enable custom integrations with internal approval hierarchies, procurement systems, and reporting tools.',
+    icon: 'workflow' as const,
+  },
+  {
+    title: 'Power BI Dashboards',
+    body:
+      'Live performance insights and material-wise trend analysis. Track auction performance, buyer behavior, MoM trends, and revenue optimization opportunities — all in one executive view.',
+    icon: 'bar-chart' as const,
+  },
+  {
+    title: 'Data Analytics Suite',
+    body:
+      'Buyer segmentation, benchmarking, and predictive trend analysis turn your auction history into strategic intelligence — surface which buyer segments pay premium prices for which categories.',
+    icon: 'database' as const,
+  },
+  {
+    title: 'Smart Notifications',
+    body:
+      'Automated WhatsApp, email, and SMS for every auction event — launch alerts, outbid notifications, time extensions, winner confirmations, payment reminders, and lifting follow-ups.',
+    icon: 'bell' as const,
+  },
+];
+
+const capabilities = [
+  {
+    title: 'Smart Auction Controls',
+    items: [
+      'Auto time extension — prevents last-second bid sniping',
+      'IP address tracking — prevents proxy bidding and manipulation',
+      'Configurable bid decrement / increment rules per lot',
+      'Floor price and reserve price management',
+      'Private and public auction options',
+    ],
+  },
+  {
+    title: 'Client Control Panel',
+    items: [
+      'Lot-wise approval / rejection with full audit trail',
+      'Real-time report generation — auction summaries, participation, revenue',
+      'Access to H1 (winning) bidder details including GST, PAN, contact',
+      'Role-based access control for multi-user client teams',
+    ],
+  },
+  {
+    title: 'Buyer & Bidder Management',
+    items: [
+      'Centralized bidder database with category, geography, activity segmentation',
+      'KYC validation and structured onboarding workflow',
+      'Targeted outreach for each auction category',
+      'Bidder performance tracking and engagement analytics',
+    ],
+  },
+  {
+    title: 'Post-Auction Operations',
+    items: [
+      'Automated LOA and invoice generation',
+      'Payment status tracking and reconciliation',
+      'Lifting and dispatch tracking by lot',
+      'Buyer follow-up with call status and Sales Order tracking',
+      'Disposition reporting for approved and rejected lots',
+    ],
+  },
+  {
+    title: 'Security & Compliance',
+    items: [
+      'ISO 27001 certified ISMS',
+      'Role-based access control',
+      'Detailed audit trail for every platform action',
+      'Data encryption and privacy policy alignment',
+    ],
+  },
+];
+
+const bidderDashboard = [
+  "Today's and upcoming auctions, all in one view",
+  'Catalogue, terms and conditions, and participation status per auction',
+  'One-click participation requests',
+  'Live auction interface with real-time rank updates',
+  'EMD status and payment links',
+  'Complete bid and purchase history',
+];
+
+const clientDashboard = [
+  'Total auctions held, bid quantity, and total bid value — live',
+  'Month-on-month performance comparison',
+  'Bidder attachment, participation, and new bidder tracking',
+  'Lifting status — approved vs. collected quantity in MT',
+  'Exception reporting — delays, lifting issues, quantity shortfalls',
+  'ERP/SAP linked data — PR to PO to Lifting in one screen',
+  'Exportable reports for management review',
+];
+---
+
+<BaseLayout
+  title="The Platform | AI-Powered Auction Technology | Auction-it"
+  description="Auction-it's platform combines AI pricing, ERP integration, Power BI dashboards, and end-to-end automation for industrial auction management."
+>
+  <Section
+    eyebrow="The Platform"
+    title="Intelligent Auction Technology. Built for Industrial Scale."
+    lead="Auction-it isn't a basic bidding tool. It's an end-to-end auction management system built on enterprise-grade infrastructure, with AI-powered pricing, real-time analytics, ERP integration, and automated workflows — designed for organizations that run dozens to hundreds of auctions a year."
+  />
+
+  <Section tone="muted" eyebrow="Technology features" title="Built on Modern Infrastructure">
+    <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+      {techFeatures.map((f) => <FeatureCard {...f} />)}
+    </div>
+  </Section>
+
+  <Section eyebrow="Platform capabilities" title="Every Step of the Auction Lifecycle">
+    <div class="grid gap-5 md:grid-cols-2">
+      {
+        capabilities.map((c) => (
+          <article class="surface-card flex h-full flex-col gap-3 p-6">
+            <h3 class="text-base font-semibold">{c.title}</h3>
+            <ul class="space-y-2 text-sm leading-relaxed text-muted-foreground">
+              {c.items.map((item) => (
+                <li class="flex gap-2">
+                  <span
+                    class="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                    style="background: hsl(var(--brand-mint-strong))"
+                    aria-hidden="true"
+                  />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </article>
+        ))
+      }
+    </div>
+  </Section>
+
+  <Section
+    tone="muted"
+    eyebrow="Bidder dashboard"
+    title="A Unified Experience for Every Buyer"
+    lead="Bidders who participate across multiple seller clients access everything from a single login."
+  >
+    <div class="surface-card p-6">
+      <ul class="grid gap-3 text-sm sm:grid-cols-2">
+        {
+          bidderDashboard.map((item) => (
+            <li class="flex gap-2">
+              <span
+                class="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                style="background: hsl(var(--brand-mint-strong))"
+                aria-hidden="true"
+              />
+              <span class="text-muted-foreground">{item}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </Section>
+
+  <Section
+    eyebrow="Client dashboard"
+    title="Full Visibility for Sellers and Procurement Teams"
+  >
+    <div class="surface-card p-6">
+      <ul class="grid gap-3 text-sm sm:grid-cols-2">
+        {
+          clientDashboard.map((item) => (
+            <li class="flex gap-2">
+              <span
+                class="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                style="background: hsl(var(--brand-mint-strong))"
+                aria-hidden="true"
+              />
+              <span class="text-muted-foreground">{item}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </Section>
+
+  <CTABand
+    eyebrow="See it in action"
+    title="Request a Demo"
+    body="A 30-minute walkthrough of the platform with one of our specialists."
+    buttons={[
+      { href: '/contact', label: 'Request a Demo', variant: 'mint' },
+      { href: '/contact', label: 'Talk to Our Team', variant: 'primary' },
+    ]}
+  />
+</BaseLayout>

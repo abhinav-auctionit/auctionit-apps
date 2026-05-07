@@ -1,0 +1,116 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Section from '../components/Section.astro';
+import CTABand from '../components/CTABand.astro';
+
+const bidderUrl = import.meta.env.PUBLIC_BIDDER_URL ?? 'https://bid.auctionit.ai';
+
+// Category content TODO — replace placeholders with the existing site's category copy.
+const categories = [
+  {
+    title: 'Ferrous Metals',
+    summary: 'Iron and steel scrap from manufacturing, demolition, and end-of-life industrial assets.',
+    items: 'PLACEHOLDER — paste category subitems here.',
+  },
+  {
+    title: 'Stainless Steel',
+    summary: 'Grade-segregated SS scrap suitable for re-rolling and remelting.',
+    items: 'PLACEHOLDER — paste category subitems here.',
+  },
+  {
+    title: 'Non-Ferrous Metals',
+    summary: 'Copper, aluminium, brass, lead, zinc, and alloy variants.',
+    items: 'PLACEHOLDER — paste category subitems here.',
+  },
+  {
+    title: 'Marine & Heavy Assets',
+    summary: 'Ships, offshore structures, port equipment, and other heavy-duty assets.',
+    items: 'PLACEHOLDER — paste category subitems here.',
+  },
+  {
+    title: 'Industrial Machinery',
+    summary: 'Production-line equipment, decommissioned plant machinery, tools, and spares.',
+    items: 'PLACEHOLDER — paste category subitems here.',
+  },
+  {
+    title: 'Electrical & Power Equipment',
+    summary: 'Transformers, switchgear, motors, cables, and balance-of-plant components.',
+    items: 'PLACEHOLDER — paste category subitems here.',
+  },
+  {
+    title: 'Solar Equipment',
+    summary: 'PV modules, inverters, mounting structures, and BOS items from utility and rooftop installations.',
+    items: 'PLACEHOLDER — paste category subitems here.',
+  },
+  {
+    title: 'E-Waste',
+    summary: 'IT and consumer electronics end-of-life — handled through certified recyclers.',
+    items: 'PLACEHOLDER — paste category subitems here.',
+  },
+  {
+    title: 'Miscellaneous',
+    summary:
+      "Specialized materials, by-products, and custom lots that don't fit neatly into the categories above.",
+    items: 'PLACEHOLDER — paste category subitems here.',
+  },
+];
+---
+
+<BaseLayout
+  title="Materials Auctioned | Industrial Scrap, Metals, E-Waste & More | Auction-it"
+  description="Auction-it regularly auctions ferrous metals, non-ferrous metals, e-waste, solar equipment, industrial machinery, and more. View our full material catalogue."
+>
+  <Section
+    eyebrow="What we auction"
+    title="Extensive Category Coverage. Deep Market Expertise."
+    lead="Auction-it handles a broad range of industrial materials — each requiring specialized knowledge of market dynamics, quality grading, buyer profiles, and regulatory requirements. Our category expertise ensures appropriate buyer targeting, competitive pricing, and compliant disposal for every material type."
+  >
+    <div class="surface-card p-6 text-sm leading-relaxed text-muted-foreground">
+      <p>
+        Below is a representative list of materials we auction regularly. If your material
+        isn't listed, speak to our team — we likely cover it.
+      </p>
+    </div>
+  </Section>
+
+  <Section tone="muted" eyebrow="Categories" title="Materials We Regularly Auction">
+    <div class="grid gap-5 md:grid-cols-2">
+      {
+        categories.map((c) => (
+          <article class="surface-card flex h-full flex-col gap-3 p-6">
+            <h3 class="text-base font-semibold">{c.title}</h3>
+            <p class="text-sm leading-relaxed text-muted-foreground">{c.summary}</p>
+            <div class="rounded-md border border-dashed border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
+              {c.items}
+            </div>
+          </article>
+        ))
+      }
+    </div>
+  </Section>
+
+  <Section eyebrow="Compliance note" title="Hazardous Material Handling">
+    <div
+      class="surface-card p-6 text-sm leading-relaxed text-muted-foreground"
+      style="border-color: hsl(var(--brand-mint) / 0.4); background: hsl(var(--brand-mint) / 0.06);"
+    >
+      <p>
+        All hazardous materials — including e-waste, chemical waste, used oil, and industrial
+        sludge — are handled in full compliance with applicable environmental regulations,
+        waste management policies, and Pollution Control Board guidelines. We partner
+        exclusively with certified recyclers and disposal facilities.
+      </p>
+    </div>
+  </Section>
+
+  <CTABand
+    eyebrow="Have material to sell?"
+    title="Tell us what you have."
+    body="Our team will advise on the right auction format, timing, and expected price range."
+    buttons={[
+      { href: '/contact', label: 'Talk to Our Team', variant: 'mint' },
+      { href: '/auctions', label: 'View Upcoming Auctions', variant: 'primary' },
+      { href: `${bidderUrl}/register`, label: 'Register as a Bidder', variant: 'primary' },
+    ]}
+  />
+</BaseLayout>

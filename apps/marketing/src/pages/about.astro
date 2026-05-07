@@ -1,0 +1,150 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Section from '../components/Section.astro';
+import StepList from '../components/StepList.astro';
+import FeatureCard from '../components/FeatureCard.astro';
+import CTABand from '../components/CTABand.astro';
+
+const processSteps = [
+  {
+    title: 'Material Assessment',
+    body:
+      'We evaluate the material, understand the lot composition, and apply market intelligence to recommend an optimal floor price and auction format.',
+  },
+  {
+    title: 'Catalogue Creation & Lot Management',
+    body:
+      'Our team prepares the auction catalogue, creates lots, attaches all relevant documentation, and schedules the auction at the right time to maximize buyer participation.',
+  },
+  {
+    title: 'Buyer Outreach',
+    body:
+      'We reach into our verified bidder database, segment by category and geography, and communicate via WhatsApp, email, and SMS to drive participation.',
+  },
+  {
+    title: 'Live Auction Execution',
+    body:
+      'The auction runs on our platform with real-time bidding, automatic time extensions (to prevent last-second sniping), and full rank visibility for all participants.',
+  },
+  {
+    title: 'Post-Auction Operations',
+    body:
+      'Winners receive automated confirmation emails. We generate invoices and LOAs, track payment status, and monitor material lifting — with follow-up alerts at every step.',
+  },
+];
+
+const certifications = [
+  {
+    title: 'ISO 9001',
+    body: 'Quality Management Systems — process consistency and continuous improvement.',
+    icon: 'shield' as const,
+  },
+  {
+    title: 'ISO 14001',
+    body: 'Environmental Management Systems — responsible waste handling and disposal.',
+    icon: 'globe' as const,
+  },
+  {
+    title: 'ISO 27001',
+    body: 'Information Security Management — robust controls aligned to ISMS standards.',
+    icon: 'shield' as const,
+  },
+];
+---
+
+<BaseLayout
+  title="About Us | Auction-it — Powered by JindalX, O.P. Jindal Group"
+  description="Learn how Auction-it is redefining industrial material sales through technology, transparency, and a verified national buyer network."
+>
+  <Section
+    eyebrow="About Auction-it"
+    title="Real Competition. Real Transparency. Real Reach."
+    lead="Auction-it is a digital e-Auction platform built and operated by JindalX — the technology and outsourcing arm of the O.P. Jindal Group, one of India's largest and most respected industrial conglomerates. We were built to solve a specific problem: industrial organizations across India are sitting on significant value tied up in scrap, surplus inventory, and secondary materials — and the traditional methods of selling these consistently fail to deliver fair market prices."
+  >
+    <div class="surface-card p-6 text-sm leading-relaxed text-muted-foreground">
+      <p>
+        Spot sales, local dealers, word-of-mouth — none of these are designed to discover the
+        true market price for industrial material. Auction-it changes that by introducing real
+        competition, real transparency, and real reach into every transaction.
+      </p>
+    </div>
+  </Section>
+
+  <Section
+    tone="muted"
+    eyebrow="The JindalX foundation"
+    title="Built on 20+ Years of Technology Excellence"
+    lead="JindalX was established in 1999 as the digital transformation and business process outsourcing arm of the O.P. Jindal Group. Trusted by Fortune 500 companies worldwide, JindalX brings AI-led efficiency, intelligent automation, and deep operational expertise to every product it builds."
+  >
+    <div class="surface-card p-6 text-sm leading-relaxed text-muted-foreground">
+      <p>
+        Auction-it inherits this foundation — which means enterprise-grade security,
+        battle-tested workflows, and a technology backbone built for scale. This isn't a
+        startup platform. It's built on the same infrastructure that serves some of the
+        world's largest industrial organizations.
+      </p>
+    </div>
+  </Section>
+
+  <Section
+    eyebrow="What we do"
+    title="Transforming Secondary Materials into Strategic Assets"
+    lead="Our purpose is simple: every ton of surplus material represents untapped value. We exist to help industrial India capture that value — efficiently, transparently, and at scale."
+  >
+    <div class="grid gap-5 md:grid-cols-2">
+      <FeatureCard
+        icon="sparkles"
+        title="AI-Powered Auction Platform"
+        body="Proprietary engine with AI pricing, real-time analytics, and automated workflows from auction creation to result declaration."
+      />
+      <FeatureCard
+        icon="users"
+        title="Verified Buyer Database"
+        body="9,000+ active buyers across every major industrial cluster in India — segmented, KYC-screened, and engaged."
+      />
+      <FeatureCard
+        icon="clipboard-check"
+        title="Managed Services Team"
+        body="A dedicated team handles end-to-end auction execution, from catalogue prep through post-sale follow-up."
+      />
+      <FeatureCard
+        icon="bar-chart"
+        title="Deep Category Expertise"
+        body="Market research and category specialists across 10+ industrial sectors — appropriate buyer targeting for every material type."
+      />
+    </div>
+  </Section>
+
+  <Section
+    tone="muted"
+    eyebrow="How we work"
+    title="Our Process"
+    lead="We don't just run auctions. We research your material category, identify the right buyers, set competitive floor prices, manage the entire auction lifecycle, and follow up on payments and material lifting — so you can stay focused on your core operations."
+  >
+    <StepList steps={processSteps} />
+  </Section>
+
+  <Section
+    eyebrow="Compliance"
+    title="ISO Certified. Compliance Ready."
+    lead="Every transaction is documented, auditable, and aligned with regulatory requirements, corporate governance standards, environmental norms, and waste management policies."
+  >
+    <div class="grid gap-5 md:grid-cols-3">
+      {certifications.map((c) => <FeatureCard {...c} />)}
+    </div>
+    <p class="mt-8 text-sm text-muted-foreground">
+      Responsible e-waste handling and chemical waste management are built into our process —
+      we partner exclusively with certified recyclers.
+    </p>
+  </Section>
+
+  <CTABand
+    eyebrow="Let's work together"
+    title="Whether one plant or a recurring programme — we're ready."
+    body="From a single liquidation event to a recurring auction programme across multiple locations, we tailor our engagement to your needs."
+    buttons={[
+      { href: '/contact', label: 'Request a Consultation', variant: 'mint' },
+      { href: '/auctions', label: 'View Upcoming Auctions', variant: 'primary' },
+    ]}
+  />
+</BaseLayout>

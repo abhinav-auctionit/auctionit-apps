@@ -1,0 +1,36 @@
+---
+export interface Step {
+  title: string;
+  body: string;
+}
+
+export interface Props {
+  steps: Step[];
+  /** Heading shown above the list (optional) */
+  heading?: string;
+}
+
+const { steps, heading } = Astro.props;
+---
+
+<div>
+  {heading && <p class="mb-6 text-base font-semibold">{heading}</p>}
+  <ol class="space-y-4">
+    {
+      steps.map((s, i) => (
+        <li class="surface-card flex gap-4 p-5">
+          <span
+            class="tabular flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+            style="background: hsl(var(--brand-mint) / 0.18); color: hsl(var(--brand-mint-strong))"
+          >
+            {i + 1}
+          </span>
+          <div>
+            <h3 class="text-sm font-semibold">{s.title}</h3>
+            <p class="mt-1 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
+          </div>
+        </li>
+      ))
+    }
+  </ol>
+</div>

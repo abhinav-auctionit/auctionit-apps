@@ -1,20 +1,230 @@
 ---
-import '@auction/ui/styles.css';
-const apiUrl = import.meta.env.PUBLIC_API_URL;
+import BaseLayout from '../layouts/BaseLayout.astro';
+import MetricsStrip from '../components/MetricsStrip.astro';
+import Section from '../components/Section.astro';
+import AuctionTypeCard from '../components/AuctionTypeCard.astro';
+import FeatureCard from '../components/FeatureCard.astro';
+import CTABand from '../components/CTABand.astro';
+
+const bidderUrl = import.meta.env.PUBLIC_BIDDER_URL ?? 'https://bid.auctionit.ai';
+
+const auctionTypes = [
+  {
+    title: 'Forward Auction',
+    body:
+      'The most common format for selling scrap and surplus. Multiple buyers compete openly, driving prices upward. Clear winner selection, no ties, full transparency.',
+    href: '/forward-auction',
+  },
+  {
+    title: 'Reverse Auction',
+    body:
+      'Ideal for procurement. Sellers compete on price to win your business, driving costs down while you define the quality and terms.',
+    href: '/reverse-auction',
+  },
+  {
+    title: 'Yankee Bidding',
+    body:
+      'For large-volume lots. Buyers bid on portions of the total quantity, maximizing participation and ensuring full liquidation even for bulk material.',
+    href: '/forward-auction#yankee',
+  },
+  {
+    title: 'Sealed Bid',
+    body:
+      'All bids are submitted confidentially and opened simultaneously. Eliminates price anchoring and buyer collusion — every participant reveals their true best price.',
+    href: '/forward-auction#sealed',
+  },
+];
+
+const whyUs = [
+  {
+    title: 'Better Prices, Guaranteed by Competition',
+    body:
+      'Competitive bidding consistently delivers 15–25% better realization than spot selling. More buyers bidding means better outcomes for sellers.',
+    icon: 'trending-up' as const,
+  },
+  {
+    title: 'Verified Buyer Network',
+    body:
+      'Every bidder goes through a KYC and onboarding process. Our database of 9,000+ buyers is segmented, screened, and active.',
+    icon: 'users' as const,
+  },
+  {
+    title: '100% Transparent Process',
+    body:
+      'Every bid, every action, every result is logged with a full audit trail. No favoritism, no manipulation — just market-driven price discovery.',
+    icon: 'eye' as const,
+  },
+  {
+    title: 'Managed End-to-End',
+    body:
+      'Catalogue creation, buyer outreach, auction execution, documentation, invoicing, and post-sale follow-up — we handle the process, you get the result.',
+    icon: 'clipboard-check' as const,
+  },
+  {
+    title: 'ISO 27001 Certified Security',
+    body:
+      'Your data is protected by robust access controls, role-based permissions, and an ISMS framework aligned with ISO 27001 standards.',
+    icon: 'shield' as const,
+  },
+  {
+    title: 'Pan-India Reach',
+    body:
+      'Coverage across 350+ locations and buyers in every major industrial cluster — your materials reach far beyond your local market.',
+    icon: 'globe' as const,
+  },
+];
+
+const clients = [
+  'Adani',
+  'Tata Motors',
+  'Honda',
+  'ACC',
+  'Ambuja Cement',
+  'JSW',
+  'Panasonic',
+  'Volvo Eicher',
+  'Maharashtra Seamless',
+  'JK Cement',
+  'Jindal SAW',
+  'Surya Roshni',
+];
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Auction · Marketing</title>
-  </head>
-  <body class="min-h-screen bg-background text-foreground p-8">
-    <h1 class="text-3xl font-semibold">Auction Marketplace</h1>
-    <p class="mt-2 text-muted-foreground">API: {apiUrl}</p>
-    <ul class="mt-6 space-y-2">
-      <li><a class="text-primary underline" href="https://app.auctionit.ai">Browse auctions →</a></li>
-      <li><a class="text-primary underline" href="https://bid.auctionit.ai">Live bidding →</a></li>
+<BaseLayout
+  title="Auction-it | Digital Industrial Auctions — More Bids. Better Prices. Faster Sales."
+  description="India's leading e-Auction platform for scrap, surplus, and secondary materials. 9,000+ verified bidders. ₹2,500 Cr+ in annual transactions. Powered by JindalX."
+>
+  <!-- Hero -->
+  <section class="relative overflow-hidden bg-primary text-primary-foreground">
+    <div
+      class="pointer-events-none absolute inset-0 opacity-[0.18]"
+      style="background-image: radial-gradient(circle at 20% 20%, hsl(var(--brand-mint) / 0.7), transparent 40%), radial-gradient(circle at 80% 60%, hsl(var(--brand-amber) / 0.4), transparent 35%);"
+      aria-hidden="true"
+    >
+    </div>
+    <div class="relative mx-auto max-w-6xl px-6 pb-20 pt-20 sm:pb-28 sm:pt-28">
+      <span
+        class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium"
+        style="background: hsl(var(--brand-mint) / 0.18); color: hsl(var(--brand-mint))"
+      >
+        <span class="inline-block h-1.5 w-1.5 rounded-full" style="background: hsl(var(--brand-mint))"
+        ></span>
+        Powered by JindalX · O.P. Jindal Group
+      </span>
+      <h1 class="mt-5 max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl">
+        Turning Scrap & Surplus into Strategic Revenue
+      </h1>
+      <p class="mt-5 max-w-2xl text-base leading-relaxed text-primary-foreground/80 sm:text-lg">
+        India's most trusted digital auction platform for industrial scrap, surplus inventory,
+        and secondary materials — connecting serious sellers with verified buyers across the
+        country.
+      </p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a
+          href="/auctions"
+          class="inline-flex items-center justify-center rounded-md px-5 py-2.5 text-sm font-medium transition hover:opacity-90"
+          style="background: hsl(var(--brand-mint)); color: hsl(var(--brand-mint-fg))"
+        >
+          View Upcoming Auctions
+        </a>
+        <a
+          href={`${bidderUrl}/register`}
+          class="inline-flex items-center justify-center rounded-md border border-primary-foreground/30 bg-primary-foreground/10 px-5 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary-foreground/20"
+        >
+          Register as a Bidder
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <MetricsStrip />
+
+  <!-- What we do -->
+  <Section
+    eyebrow="What we do"
+    title="Simple to Use. Serious About Results."
+    lead="Auction-it is a digital e-Auction platform from JindalX, part of the O.P. Jindal Group. We specialize in helping industrial organizations liquidate scrap, excess inventory, and secondary materials at the best possible price — through transparent, competitive online auctions."
+  >
+    <div class="grid gap-6 md:grid-cols-2">
+      <div class="surface-card p-6">
+        <h3 class="text-base font-semibold">For Sellers</h3>
+        <p class="mt-3 text-sm leading-relaxed text-muted-foreground">
+          A verified national buyer network, AI-backed price guidance, and end-to-end auction
+          management — so you can focus on your core business while we handle everything from
+          lot creation to payment collection.
+        </p>
+        <a
+          href="/forward-auction"
+          class="mt-4 inline-flex items-center gap-1 text-sm font-medium hover:underline"
+          style="color: hsl(var(--brand-mint-strong))"
+        >
+          How selling works <span aria-hidden="true">→</span>
+        </a>
+      </div>
+      <div class="surface-card p-6">
+        <h3 class="text-base font-semibold">For Buyers</h3>
+        <p class="mt-3 text-sm leading-relaxed text-muted-foreground">
+          Access live auctions from multiple clients on a single dashboard. Bid in real time,
+          track your participation, and get instant confirmation when you win.
+        </p>
+        <a
+          href={`${bidderUrl}/register`}
+          class="mt-4 inline-flex items-center gap-1 text-sm font-medium hover:underline"
+          style="color: hsl(var(--brand-mint-strong))"
+        >
+          Register as a bidder <span aria-hidden="true">→</span>
+        </a>
+      </div>
+    </div>
+  </Section>
+
+  <!-- Auction types -->
+  <Section
+    tone="muted"
+    eyebrow="Auction types"
+    title="Choose the Right Auction Format"
+    lead="Different objectives call for different formats. We support the four most common variants used in industrial auctions."
+  >
+    <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+      {auctionTypes.map((t) => <AuctionTypeCard {...t} />)}
+    </div>
+  </Section>
+
+  <!-- Why Auction-it -->
+  <Section eyebrow="Why Auction-it" title="Why Thousands of Buyers and Sellers Choose Us">
+    <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+      {whyUs.map((w) => <FeatureCard {...w} />)}
+    </div>
+  </Section>
+
+  <!-- Clients -->
+  <Section
+    tone="muted"
+    eyebrow="Clients"
+    title="Trusted by India's Leading Industrial Names"
+    align="center"
+  >
+    <ul
+      class="mx-auto grid max-w-5xl grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
+    >
+      {
+        clients.map((c) => (
+          <li class="surface-card flex items-center justify-center px-4 py-5 text-center text-sm font-medium text-foreground">
+            {c}
+          </li>
+        ))
+      }
     </ul>
-  </body>
-</html>
+    <p class="mt-6 text-center text-sm text-muted-foreground">…and many more.</p>
+  </Section>
+
+  <CTABand
+    eyebrow="Ready to launch?"
+    title="Ready to Run Your First Auction?"
+    body="Talk to our team and discover how Auction-it can help you recover maximum value from your surplus materials."
+    buttons={[
+      { href: '/contact', label: 'Request a Consultation', variant: 'mint' },
+      { href: `${bidderUrl}/register`, label: 'Register as a Bidder', variant: 'primary' },
+    ]}
+  />
+</BaseLayout>

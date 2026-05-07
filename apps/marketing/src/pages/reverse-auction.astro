@@ -1,0 +1,97 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Section from '../components/Section.astro';
+import StepList from '../components/StepList.astro';
+import FeatureCard from '../components/FeatureCard.astro';
+import CTABand from '../components/CTABand.astro';
+
+const bidderUrl = import.meta.env.PUBLIC_BIDDER_URL ?? 'https://bid.auctionit.ai';
+
+const steps = [
+  {
+    title: 'Define Your Requirement',
+    body:
+      'Specify what you need: material type, quantity, quality standards, delivery terms, and any compliance requirements.',
+  },
+  {
+    title: 'We Identify & Qualify Suppliers',
+    body:
+      'Our team screens and onboards suppliers against your specifications, completing KYC and technical qualification before the auction begins.',
+  },
+  {
+    title: 'The Auction Runs',
+    body:
+      "Qualified suppliers bid against each other in real time, with full visibility into their own rank but not competitors' identities. Prices move downward as suppliers compete.",
+  },
+  {
+    title: 'You Choose',
+    body:
+      'Review bids, supplier credentials, and compliance status. Approve or reject at your discretion — with full audit documentation of every step.',
+  },
+];
+
+const benefits = [
+  {
+    title: 'Cost Savings Through Competition',
+    body:
+      "Eliminate informal negotiations and price opacity. When suppliers know they're competing live, they bring their most competitive pricing to the table.",
+    icon: 'trending-up' as const,
+  },
+  {
+    title: 'Full Transparency & Documentation',
+    body:
+      'Every bid is logged. Every supplier interaction is recorded. Complete audit trail for internal compliance and governance requirements.',
+    icon: 'eye' as const,
+  },
+  {
+    title: 'Supplier Qualification Built In',
+    body:
+      "Technical and compliance checks happen before bidding starts — so you're only evaluating suppliers who actually meet your requirements.",
+    icon: 'clipboard-check' as const,
+  },
+  {
+    title: 'Faster Procurement Cycles',
+    body:
+      'What once took weeks of back-and-forth negotiation can be completed in hours — with better outcomes and full documentation.',
+    icon: 'workflow' as const,
+  },
+];
+---
+
+<BaseLayout
+  title="Reverse Auction | Procurement-Driven Price Discovery | Auction-it"
+  description="Use Auction-it's reverse auction platform to drive down procurement costs while maintaining quality. Suppliers compete. You choose."
+>
+  <Section
+    eyebrow="Reverse Auction"
+    title="Let Suppliers Compete. You Win on Price."
+    lead="In a reverse auction, the buyer defines what they need, and multiple suppliers compete by lowering their price to win the contract. Unlike a forward auction where sellers benefit from rising bids, a reverse auction puts the buyer in control — driving costs down while you set the quality and compliance bar."
+  >
+    <div class="surface-card p-6 text-sm leading-relaxed text-muted-foreground">
+      <p>
+        It's the most effective format for procurement: transparent, documented, and free
+        from the informal negotiations that often lead to suboptimal buying decisions.
+      </p>
+    </div>
+  </Section>
+
+  <Section tone="muted" eyebrow="How it works" title="From Requirement to Award in Hours">
+    <StepList steps={steps} />
+  </Section>
+
+  <Section eyebrow="Key benefits" title="Why Procurement Teams Use Reverse Auctions">
+    <div class="grid gap-5 md:grid-cols-2">
+      {benefits.map((b) => <FeatureCard {...b} />)}
+    </div>
+  </Section>
+
+  <CTABand
+    eyebrow="Get started"
+    title="Run your next procurement on Auction-it"
+    buttons={[
+      { href: '/contact', label: 'Talk to Us About Reverse Auctions', variant: 'mint' },
+      { href: '/auctions', label: 'View Upcoming Reverse Auctions', variant: 'primary' },
+      { href: `${bidderUrl}/register`, label: 'Register as a Supplier', variant: 'primary' },
+    ]}
+  />
+</BaseLayout>

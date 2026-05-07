@@ -1,0 +1,182 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Section from '../components/Section.astro';
+import StepList from '../components/StepList.astro';
+import FeatureCard from '../components/FeatureCard.astro';
+import CTABand from '../components/CTABand.astro';
+
+const bidderUrl = import.meta.env.PUBLIC_BIDDER_URL ?? 'https://bid.auctionit.ai';
+
+const sellerSteps = [
+  {
+    title: 'Share Your Material Details',
+    body:
+      "Tell us what you're selling: material type, quantity, location, and any relevant quality parameters. Our team takes it from there.",
+  },
+  {
+    title: 'We Prepare the Auction',
+    body:
+      'We create the lot catalogue, set a reserve price based on market research, configure the auction rules, and schedule it at the optimal time for buyer participation.',
+  },
+  {
+    title: 'We Reach Your Buyers',
+    body:
+      'Targeted outreach to relevant verified bidders via WhatsApp, email, and SMS — ensuring the right buyers show up.',
+  },
+  {
+    title: 'The Auction Runs',
+    body:
+      'Buyers bid in real time. Automatic time extensions prevent last-second sniping. You watch the price rise on your client dashboard.',
+  },
+  {
+    title: 'We Handle the Rest',
+    body:
+      'You approve or reject the winning bid. We generate the LOA and invoice, track payment, and follow up on material lifting — all documented with a full audit trail.',
+  },
+];
+
+const bidderSteps = [
+  {
+    title: 'Register & Complete KYC',
+    body:
+      'Create your account and complete our onboarding process. Verified once, you get access to auctions from all our seller clients.',
+  },
+  {
+    title: 'Browse Upcoming Auctions',
+    body:
+      'A unified dashboard shows all live and upcoming auctions across multiple sellers, with catalogues, terms, and start times in one place.',
+  },
+  {
+    title: 'Request Participation',
+    body:
+      "One click to request participation. You'll receive confirmation and all auction details automatically.",
+  },
+  {
+    title: 'Bid Live',
+    body:
+      'Join the live auction, see real-time rankings, place bids, and receive instant outbid alerts. Track every lot you care about.',
+  },
+  {
+    title: 'Win & Collect',
+    body:
+      'Receive your winning confirmation email with complete details. Track payment status and material collection from your buyer dashboard.',
+  },
+];
+
+const sellerFeatures = [
+  { title: 'AI-recommended floor and reserve prices', icon: 'sparkles' as const, body: 'Pricing models trained on historical data and live market trends — no more starting too low.' },
+  { title: 'Configurable bid increment / decrement', icon: 'workflow' as const, body: 'Per-lot rules so you can encourage participation or protect against manipulation.' },
+  { title: 'Auto time extension', icon: 'bell' as const, body: 'Auctions auto-extend on late bids to prevent last-second sniping and maximize realization.' },
+  { title: 'Client-side lot approval / rejection', icon: 'clipboard-check' as const, body: 'Final word on every winning bid stays with you. No surprises.' },
+  { title: 'Real-time performance dashboard', icon: 'bar-chart' as const, body: 'Track auction progress, bidder participation, and revenue impact as it happens.' },
+  { title: 'Full audit trail and post-auction reporting', icon: 'eye' as const, body: 'Every action timestamped and exportable for governance review.' },
+  { title: 'LOA generation and payment tracking', icon: 'workflow' as const, body: 'Automated documentation and follow-ups from auction close through payment receipt.' },
+  { title: 'ERP / SAP integration', icon: 'plug' as const, body: 'Inventory, transactions, and reconciliation flow between systems — no manual data entry.' },
+  { title: 'IP tracking & role-based access', icon: 'shield' as const, body: 'Detect proxy bidding; control who in your org sees what across multi-user teams.' },
+];
+
+const buyerFeatures = [
+  { title: 'Single login across multiple clients', icon: 'users' as const, body: "Verified once. Bid on every seller's auctions from one dashboard." },
+  { title: 'Live rank visibility & outbid alerts', icon: 'bell' as const, body: 'See where you stand in real time and respond instantly when outbid.' },
+  { title: 'Wishlist & participation tracking', icon: 'eye' as const, body: 'Save lots of interest, manage participation requests in one place.' },
+  { title: 'EMD management', icon: 'clipboard-check' as const, body: 'Earnest money deposit handling integrated into the auction flow.' },
+  { title: 'Proxy / auto-bid support', icon: 'workflow' as const, body: 'Set your maximum and let the system bid for you up to that ceiling.' },
+  { title: 'Instant notifications', icon: 'bell' as const, body: 'Wins, time extensions, payment due — every event delivered to you.' },
+  { title: 'Complete purchase history', icon: 'database' as const, body: 'Searchable record of every lot won, with documentation attached.' },
+  { title: 'Dedicated help desk access', icon: 'users' as const, body: 'Real humans on call — not just a chatbot — when you need them.' },
+];
+---
+
+<BaseLayout
+  title="Forward Auction | Sell Scrap & Surplus at the Best Market Price | Auction-it"
+  description="Run transparent, competitive forward auctions for your industrial scrap and surplus inventory. Access 9,000+ verified buyers. Better prices. Faster liquidation."
+>
+  <Section
+    eyebrow="Forward Auction"
+    title="Competitive Bidding. Maximum Value. Complete Transparency."
+    lead="A forward auction is the most widely used format for selling industrial scrap, surplus inventory, and secondary materials. A single seller lists material for sale, and multiple verified buyers compete openly — driving the price upward until the highest bidder wins."
+  >
+    <div class="surface-card p-6 text-sm leading-relaxed text-muted-foreground">
+      <p>
+        It's the most effective way to discover the true market price for your material,
+        eliminate buyer cartels, and guarantee fair, documented outcomes.
+      </p>
+    </div>
+  </Section>
+
+  <Section
+    tone="muted"
+    eyebrow="For sellers"
+    title="Selling is Simple. Results are Serious."
+  >
+    <StepList steps={sellerSteps} />
+  </Section>
+
+  <Section eyebrow="For bidders" title="Bidding is Fast. Everything is Visible.">
+    <StepList steps={bidderSteps} />
+  </Section>
+
+  <Section
+    tone="muted"
+    eyebrow="Built for sellers"
+    title="Tools that Maximize Realization"
+  >
+    <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+      {sellerFeatures.map((f) => <FeatureCard {...f} />)}
+    </div>
+  </Section>
+
+  <Section
+    eyebrow="Built for buyers"
+    title="A Bidding Experience Built for Volume"
+  >
+    <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+      {buyerFeatures.map((f) => <FeatureCard {...f} />)}
+    </div>
+  </Section>
+
+  <Section tone="muted" eyebrow="Results" title="What Our Sellers Achieve">
+    <div class="grid gap-6 md:grid-cols-[1fr_2fr]">
+      <div
+        class="surface-card flex flex-col items-start gap-2 p-6"
+        style="background: hsl(var(--brand-mint) / 0.12); border-color: hsl(var(--brand-mint) / 0.4);"
+      >
+        <p class="text-xs font-semibold uppercase tracking-wider" style="color: hsl(var(--brand-mint-strong))">
+          Typical realization
+        </p>
+        <p class="tabular text-4xl font-semibold tracking-tight">15–25%</p>
+        <p class="text-sm text-muted-foreground">
+          Better outcomes vs. spot or local sales
+        </p>
+      </div>
+      <ul class="space-y-3 text-sm leading-relaxed text-muted-foreground">
+        <li class="surface-card p-4">
+          <strong class="font-medium text-foreground">Competition outside your local market</strong>
+          breaks regional cartels and price-anchoring patterns.
+        </li>
+        <li class="surface-card p-4">
+          <strong class="font-medium text-foreground">A verified national buyer network</strong>
+          means more serious bidders show up to every auction.
+        </li>
+        <li class="surface-card p-4">
+          <strong class="font-medium text-foreground">AI-backed pricing</strong>
+          ensures you never start too low — and never set a reserve that scares buyers off.
+        </li>
+        <li class="surface-card p-4">
+          <strong class="font-medium text-foreground">Time pressure and rank visibility</strong>
+          push bidders to their best price, not their first price.
+        </li>
+      </ul>
+    </div>
+  </Section>
+
+  <CTABand
+    eyebrow="Get started"
+    title="Bring your next auction to Auction-it"
+    buttons={[
+      { href: '/auctions', label: 'View Upcoming Forward Auctions', variant: 'mint' },
+      { href: `${bidderUrl}/register`, label: 'Register as a Bidder', variant: 'primary' },
+      { href: '/contact', label: 'Talk to Our Team About Selling', variant: 'primary' },
+    ]}
+  />
+</BaseLayout>

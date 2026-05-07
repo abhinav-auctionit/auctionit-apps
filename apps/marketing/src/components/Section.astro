@@ -1,0 +1,57 @@
+---
+export interface Props {
+  id?: string;
+  eyebrow?: string;
+  title?: string;
+  lead?: string;
+  tone?: 'default' | 'muted' | 'navy';
+  align?: 'left' | 'center';
+}
+
+const { id, eyebrow, title, lead, tone = 'default', align = 'left' } = Astro.props;
+
+const toneClass =
+  tone === 'navy'
+    ? 'bg-primary text-primary-foreground'
+    : tone === 'muted'
+      ? 'bg-secondary'
+      : '';
+---
+
+<section id={id} class:list={['py-16 sm:py-20', toneClass]}>
+  <div class="mx-auto max-w-6xl px-6">
+    {(eyebrow || title || lead) && (
+      <div class:list={['max-w-3xl', align === 'center' && 'mx-auto text-center']}>
+        {eyebrow && (
+          <p
+            class:list={[
+              'text-xs font-semibold uppercase tracking-wider',
+              tone === 'navy' ? 'text-accent' : 'text-accent-foreground/80',
+            ]}
+            style={tone === 'navy' ? '' : 'color: hsl(var(--brand-mint-strong))'}
+          >
+            {eyebrow}
+          </p>
+        )}
+        {title && (
+          <h2 class="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+            {title}
+          </h2>
+        )}
+        {lead && (
+          <p
+            class:list={[
+              'mt-4 text-base leading-relaxed sm:text-lg',
+              tone === 'navy' ? 'text-primary-foreground/80' : 'text-muted-foreground',
+            ]}
+          >
+            {lead}
+          </p>
+        )}
+      </div>
+    )}
+    <div class:list={[(eyebrow || title || lead) && 'mt-10 sm:mt-12']}>
+      <slot />
+    </div>
+  </div>
+</section>
