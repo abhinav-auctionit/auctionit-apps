@@ -43,4 +43,8 @@ COPY --from=build /deploy/prisma ./prisma
 COPY --from=build /deploy/package.json ./package.json
 
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+# Run pending migrations on every container start, then start the API.
+# `prisma migrate deploy` is idempotent (checks _prisma_migrations table),
+# so on a no-op deploy it costs <1s. `exec` ensures SIGTERM from the host
+# propagates to Node instead of being trapped by the shell.
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && exec node dist/main.js"]
