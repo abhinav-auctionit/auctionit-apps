@@ -3,11 +3,11 @@ import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
 import vercel from '@astrojs/vercel/serverless';
 
-// Hybrid: pages are static by default. Mark dynamic ones with
+// Astro 5: static by default. Mark dynamic pages with
 //   export const prerender = false;
 // to opt them into per-request SSR via the Vercel adapter.
 export default defineConfig({
-  output: 'hybrid',
+  output: 'static',
   adapter: vercel(),
   integrations: [react(), tailwind({ applyBaseStyles: false })],
   server: {

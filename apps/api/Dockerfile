@@ -25,6 +25,11 @@ RUN pnpm --filter @auction/api build
 # Trim to production deps for the runtime image
 RUN pnpm --filter @auction/api --prod deploy /deploy
 
+# pnpm deploy reinstalls deps from the lockfile without lifecycle artifacts,
+# so the Prisma client generated in the build node_modules above isn't carried
+# over. Regenerate inside /deploy so the runtime image has the artifacts.
+RUN cd /deploy && ./node_modules/.bin/prisma generate
+
 # ---- runtime stage ------------------------------------------------------
 FROM node:22-alpine AS runtime
 
