@@ -14,6 +14,7 @@ import { NewItemPage } from './pages/NewItemPage';
 import { BiddersPage } from './pages/BiddersPage';
 import { BidderDetailPage } from './pages/BidderDetailPage';
 import { ClientsPage } from './pages/ClientsPage';
+import { ClientDetailPage } from './pages/ClientDetailPage';
 import { NewClientPage } from './pages/NewClientPage';
 
 const queryClient = new QueryClient();
@@ -50,6 +51,7 @@ export function App() {
             <Route path="/bidders/:id" element={adminRoute(<BidderDetailPage />)} />
             <Route path="/clients" element={adminRoute(<ClientsPage />)} />
             <Route path="/clients/new" element={adminRoute(<NewClientPage />)} />
+            <Route path="/clients/:id" element={adminRoute(<ClientDetailPage />)} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <Toaster />

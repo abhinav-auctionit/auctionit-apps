@@ -75,7 +75,12 @@ export function ClientsPage() {
                   {list.data.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell>
-                        <div className="font-medium">{c.companyName}</div>
+                        <Link
+                          to={`/clients/${c.id}`}
+                          className="font-medium text-foreground hover:underline"
+                        >
+                          {c.companyName}
+                        </Link>
                         {c.websiteUrl && (
                           <div className="text-xs text-muted-foreground">{c.websiteUrl}</div>
                         )}

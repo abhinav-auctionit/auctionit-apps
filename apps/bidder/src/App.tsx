@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { WalletPage } from './pages/WalletPage';
+import { ComingSoonPage } from './pages/ComingSoonPage';
 
 const queryClient = new QueryClient();
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
@@ -37,6 +38,38 @@ export function App() {
               element={
                 <RequireAuth roles={['bidder']}>
                   <WalletPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/auctions"
+              element={
+                <RequireAuth roles={['bidder']}>
+                  <ComingSoonPage title="Live auctions" />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/bids"
+              element={
+                <RequireAuth roles={['bidder']}>
+                  <ComingSoonPage title="My bids" />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/watchlist"
+              element={
+                <RequireAuth roles={['bidder']}>
+                  <ComingSoonPage title="Watchlist" />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <RequireAuth roles={['bidder']}>
+                  <ComingSoonPage title="Profile" />
                 </RequireAuth>
               }
             />

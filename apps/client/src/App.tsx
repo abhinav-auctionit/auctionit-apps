@@ -5,6 +5,7 @@ import { Toaster } from '@auction/ui';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { ComingSoonPage } from './pages/ComingSoonPage';
 
 const queryClient = new QueryClient();
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
@@ -28,6 +29,30 @@ export function App() {
               element={
                 <RequireAuth roles={['client']}>
                   <DashboardPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/auctions"
+              element={
+                <RequireAuth roles={['client']}>
+                  <ComingSoonPage title="My auctions" />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/lots"
+              element={
+                <RequireAuth roles={['client']}>
+                  <ComingSoonPage title="Lots" />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <RequireAuth roles={['client']}>
+                  <ComingSoonPage title="Performance" />
                 </RequireAuth>
               }
             />
