@@ -10,6 +10,14 @@ export const envSchema = z.object({
 
   CORS_ORIGINS: z.string().default(''),
 
+  // Per-app origin lists drive **session cookie naming** so admin/bidder/client
+  // apps each get an isolated cookie (e.g. auction_session_admin) even though
+  // they all call the same API. Comma-separated, matched against the request's
+  // Origin header. Origins outside any list fall back to the default cookie.
+  APP_ADMIN_ORIGINS: z.string().default('http://localhost:5175'),
+  APP_BIDDER_ORIGINS: z.string().default('http://localhost:5174'),
+  APP_CLIENT_ORIGINS: z.string().default('http://localhost:5173'),
+
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).optional(),
 
   SESSION_COOKIE_NAME: z.string().default('auction_session'),

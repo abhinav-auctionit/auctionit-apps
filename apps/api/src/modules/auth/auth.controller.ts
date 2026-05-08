@@ -162,9 +162,10 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ ok: true }> {
-    const sessionId = req.cookies?.[this.config.cookies.name];
+    const cookieName = this.cookieNameForRequest(req);
+    const sessionId = req.cookies?.[cookieName];
     if (sessionId) await this.sessions.revoke(sessionId);
-    res.clearCookie(this.config.cookies.name, this.cookieClearOptions());
+    res.clearCookie(cookieName, this.cookieClearOptions());
     return { ok: true };
   }
 
@@ -184,7 +185,13 @@ export class AuthController {
       userAgent: req.get('user-agent') ?? undefined,
       ipAddress: req.ip,
     });
-    res.cookie(this.config.cookies.name, session.id, this.cookieOptions(session.expiresAt));
+    const cookieName = this.cookieNameForRequest(req);
+    res.cookie(cookieName, session.id, this.cookieOptions(session.expiresAt));
+  }
+
+  private cookieNameForRequest(req: Request): string {
+    const appKey = this.config.appKeyForOrigin(req.get('Origin'));
+    return this.config.sessionCookieNameFor(appKey);
   }
 
   private cookieOptions(expires: Date): CookieOptions {

@@ -78,6 +78,44 @@ export class AppConfig {
     };
   }
 
+  /**
+   * Maps each frontend app's allowed origins to a stable role key used to
+   * derive a per-app cookie name. Keeps admin/bidder/client sessions
+   * cleanly isolated even though all four frontends call one API.
+   */
+  get apps(): Record<'admin' | 'bidder' | 'client', readonly string[]> {
+    const split = (raw: string) =>
+      raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    return {
+      admin: split(this.cs.get('APP_ADMIN_ORIGINS', { infer: true })),
+      bidder: split(this.cs.get('APP_BIDDER_ORIGINS', { infer: true })),
+      client: split(this.cs.get('APP_CLIENT_ORIGINS', { infer: true })),
+    };
+  }
+
+  /** Look up which app an Origin header belongs to, or null if unknown. */
+  appKeyForOrigin(origin: string | null | undefined): 'admin' | 'bidder' | 'client' | null {
+    if (!origin) return null;
+    const apps = this.apps;
+    if (apps.admin.includes(origin)) return 'admin';
+    if (apps.bidder.includes(origin)) return 'bidder';
+    if (apps.client.includes(origin)) return 'client';
+    return null;
+  }
+
+  /**
+   * Per-app cookie name (e.g. `auction_session_admin`) so a session set by
+   * the admin frontend can't be read by the bidder frontend even though they
+   * share the API host. Unknown origins fall back to the legacy default name.
+   */
+  sessionCookieNameFor(appKey: 'admin' | 'bidder' | 'client' | null): string {
+    const base = this.cs.get('SESSION_COOKIE_NAME', { infer: true });
+    return appKey ? `${base}_${appKey}` : base;
+  }
+
   get storage() {
     const allowedMimeRaw = this.cs.get('STORAGE_ALLOWED_MIME', { infer: true }) ?? '';
     return {
