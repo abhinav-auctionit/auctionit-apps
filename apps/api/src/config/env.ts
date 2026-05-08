@@ -57,6 +57,10 @@ export const envSchema = z.object({
     .default(
       '{OTP} is your Authorization OTP for login verification. OTP will expire in 15 minutes. Regards- JindalX',
     ),
+  // When true, log the full message body (incl. OTP) and gateway response.
+  // When false, log only metadata (recipient, message length, status).
+  // Recommend `false` in production to keep OTPs out of log aggregators.
+  SMS_LOG_ENABLED: z.coerce.boolean().default(true),
 });
 
 export type Env = z.infer<typeof envSchema>;

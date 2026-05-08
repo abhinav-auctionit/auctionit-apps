@@ -16,7 +16,8 @@ const buildSmsService = (config: AppConfig): SmsService => {
     }
     logger.log(
       `using Analytics Mantra SMS gateway (sender=${sms.senderId}, ` +
-        `host=${new URL(sms.baseUrl).host}, dlt-template=${sms.dltTemplateId ?? '(none)'})`,
+        `host=${new URL(sms.baseUrl).host}, dlt-template=${sms.dltTemplateId ?? '(none)'}, ` +
+        `verbose-logs=${sms.logEnabled})`,
     );
     return new AnalyticsMantraSmsService({
       baseUrl: sms.baseUrl,
@@ -28,11 +29,14 @@ const buildSmsService = (config: AppConfig): SmsService => {
       dltHeaderId: sms.dltHeaderId,
       dltTemplateId: sms.dltTemplateId,
       successToken: sms.successToken,
+      logEnabled: sms.logEnabled,
     });
   }
 
-  logger.log('using stub SMS service (logs to console — no real SMS delivered)');
-  return new StubSmsService();
+  logger.log(
+    `using stub SMS service (logs to console — no real SMS delivered, verbose-logs=${sms.logEnabled})`,
+  );
+  return new StubSmsService(sms.logEnabled);
 };
 
 @Global()
