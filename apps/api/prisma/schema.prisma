@@ -109,6 +109,21 @@ enum WalletTxnKind {
   @@map("wallet_txn_kind")
 }
 
+enum OtherChargeType {
+  flat
+  percentage
+
+  @@map("other_charge_type")
+}
+
+enum StaggeringOfLots {
+  none
+  all_lots
+  subsequent_lots
+
+  @@map("staggering_of_lots")
+}
+
 model User {
   id                String   @id @default(uuid()) @db.Uuid
   email             String   @unique @db.VarChar(255)
@@ -264,9 +279,55 @@ model StoredFile {
   bidderProofOfAddressOf  BidderProfile[] @relation("BidderProofOfAddress")
   bidderCancelledChequeOf BidderProfile[] @relation("BidderCancelledCheque")
   bidderOtherOf           BidderProfile[] @relation("BidderOther")
+  clientTncOf             Client[]        @relation("ClientTnc")
 
   @@index([uploadedById], map: "stored_files_uploader_idx")
   @@map("stored_files")
+}
+
+model Client {
+  id                String  @id @default(uuid()) @db.Uuid
+  companyName       String  @map("company_name") @db.VarChar(100)
+  phone             String? @db.VarChar(20)
+  websiteUrl        String? @map("website_url") @db.VarChar(100)
+  registeredAddress String  @map("registered_address") @db.VarChar(500)
+  country           String  @db.VarChar(64)
+
+  pan      String  @db.VarChar(10)
+  tan      String  @db.VarChar(10)
+  tin      String  @db.VarChar(15)
+  isActive Boolean @default(true) @map("is_active")
+
+  prefixAuctionCode String? @map("prefix_auction_code") @db.VarChar(25)
+  suffixAuctionCode String? @map("suffix_auction_code") @db.VarChar(25)
+
+  autoExtend                     Boolean           @default(false) @map("auto_extend")
+  extendIfLastBidSec             Int?              @map("extend_if_last_bid_sec")
+  extendDurationSec              Int?              @map("extend_duration_sec")
+  extensionMaxTimes              Int?              @map("extension_max_times")
+  staggeringOfLots               StaggeringOfLots? @map("staggering_of_lots")
+  staggeringOfLotsDurationSec    Int?              @map("staggering_of_lots_duration_sec")
+  staggeringOfAuction            Boolean?          @map("staggering_of_auction")
+  staggeringOfAuctionDurationSec Int?              @map("staggering_of_auction_duration_sec")
+
+  otherChargeType   OtherChargeType? @map("other_charge_type")
+  otherChargeAmount Int?             @map("other_charge_amount")
+  revenueRate       Int              @map("revenue_rate")
+
+  plantTechPersonDetails String? @map("plant_tech_person_details") @db.VarChar(200)
+
+  displayMaterialLocation Boolean @default(false) @map("display_material_location")
+  displayPlantLocation    Boolean @default(false) @map("display_plant_location")
+
+  tncFileId String?     @map("tnc_file_id") @db.Uuid
+  tncFile   StoredFile? @relation("ClientTnc", fields: [tncFileId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([pan], map: "clients_pan_unique")
+  @@index([isActive], map: "clients_is_active_idx")
+  @@map("clients")
 }
 
 model Session {

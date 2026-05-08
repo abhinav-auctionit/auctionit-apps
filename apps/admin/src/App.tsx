@@ -13,6 +13,8 @@ import { ItemDetailPage } from './pages/ItemDetailPage';
 import { NewItemPage } from './pages/NewItemPage';
 import { BiddersPage } from './pages/BiddersPage';
 import { BidderDetailPage } from './pages/BidderDetailPage';
+import { ClientsPage } from './pages/ClientsPage';
+import { NewClientPage } from './pages/NewClientPage';
 
 const queryClient = new QueryClient();
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
@@ -46,6 +48,8 @@ export function App() {
             <Route path="/items/:id" element={adminRoute(<ItemDetailPage />)} />
             <Route path="/bidders" element={adminRoute(<BiddersPage />)} />
             <Route path="/bidders/:id" element={adminRoute(<BidderDetailPage />)} />
+            <Route path="/clients" element={adminRoute(<ClientsPage />)} />
+            <Route path="/clients/new" element={adminRoute(<NewClientPage />)} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <Toaster />

@@ -8,6 +8,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { FilesModule } from './modules/files/files.module';
 import { BidderModule } from './modules/bidder/bidder.module';
+import { ClientsModule } from './modules/clients/clients.module';
 import { HealthModule } from './modules/health/health.module';
 import { SmsModule } from './modules/sms/sms.module';
 import { SessionAuthGuard } from './modules/auth/guards/session-auth.guard';
@@ -24,6 +25,7 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
     InventoryModule,
     FilesModule,
     BidderModule,
+    ClientsModule,
     HealthModule,
   ],
   providers: [

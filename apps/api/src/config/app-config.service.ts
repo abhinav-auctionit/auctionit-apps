@@ -109,11 +109,15 @@ export class AppConfig {
   /**
    * Per-app cookie name (e.g. `auction_session_admin`) so a session set by
    * the admin frontend can't be read by the bidder frontend even though they
-   * share the API host. Unknown origins fall back to the legacy default name.
+   * share the API host. Returns null when the origin is not in any
+   * configured app list — callers refuse to set/read a session in that case
+   * so a misconfigured `APP_*_ORIGINS` fails loudly instead of silently
+   * sharing a single cookie across all apps.
    */
-  sessionCookieNameFor(appKey: 'admin' | 'bidder' | 'client' | null): string {
+  sessionCookieNameFor(appKey: 'admin' | 'bidder' | 'client' | null): string | null {
+    if (!appKey) return null;
     const base = this.cs.get('SESSION_COOKIE_NAME', { infer: true });
-    return appKey ? `${base}_${appKey}` : base;
+    return `${base}_${appKey}`;
   }
 
   get storage() {

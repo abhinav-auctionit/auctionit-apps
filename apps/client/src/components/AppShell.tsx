@@ -13,34 +13,18 @@ const NAV: NavItem[] = [
   { kind: 'leaf', label: 'Home', to: '/', end: true },
   {
     kind: 'group',
-    label: 'Inventory',
-    basePaths: ['/inventory', '/items'],
+    label: 'Auctions',
+    basePaths: ['/auctions', '/lots'],
     children: [
-      { kind: 'leaf', label: 'Categories', to: '/inventory/categories' },
-      { kind: 'leaf', label: 'Attributes', to: '/inventory/attributes' },
-      { kind: 'leaf', label: 'Items', to: '/items' },
+      { kind: 'leaf', label: 'My auctions', to: '/auctions' },
+      { kind: 'leaf', label: 'Lots', to: '/lots' },
     ],
   },
   {
     kind: 'group',
-    label: 'Users',
-    basePaths: ['/users'],
-    children: [{ kind: 'leaf', label: 'Create user', to: '/users/new' }],
-  },
-  {
-    kind: 'group',
-    label: 'Bidders',
-    basePaths: ['/bidders'],
-    children: [{ kind: 'leaf', label: 'Applications', to: '/bidders' }],
-  },
-  {
-    kind: 'group',
-    label: 'Clients',
-    basePaths: ['/clients'],
-    children: [
-      { kind: 'leaf', label: 'All clients', to: '/clients', end: true },
-      { kind: 'leaf', label: 'Onboard client', to: '/clients/new' },
-    ],
+    label: 'Reports',
+    basePaths: ['/reports'],
+    children: [{ kind: 'leaf', label: 'Performance', to: '/reports' }],
   },
 ];
 
@@ -61,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div className="px-5 py-5">
           <Link to="/" className="font-semibold tracking-tight">
-            Auction · Admin
+            Auction · Seller
           </Link>
         </div>
         <Separator />

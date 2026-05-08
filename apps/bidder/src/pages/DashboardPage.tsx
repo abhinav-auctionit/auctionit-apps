@@ -1,9 +1,8 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ApiError } from '@auction/api-client';
 import { useApiClient, useAuth } from '@auction/auth';
 import {
-  Badge,
   Button,
   Card,
   CardContent,
@@ -11,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@auction/ui';
+import { AppShell } from '../components/AppShell';
 
 const inr = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -21,8 +21,7 @@ const formatRs = (rupees: number) => inr.format(rupees);
 
 export function DashboardPage() {
   const api = useApiClient();
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
 
   const wallet = useQuery({
     queryKey: ['bidder', 'me', 'wallet'],
@@ -31,30 +30,17 @@ export function DashboardPage() {
     retry: false,
   });
 
-  async function onLogout() {
-    await logout();
-    navigate('/login', { replace: true });
-  }
-
   if (!user) return null;
 
   return (
-    <main className="min-h-screen bg-background p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">Bidder dashboard</h1>
-            <p className="text-sm text-muted-foreground">
-              Signed in as {user.name}{' '}
-              <Badge variant="secondary" className="ml-1">
-                {user.role}
-              </Badge>
-            </p>
-          </div>
-          <Button variant="outline" onClick={onLogout}>
-            Log out
-          </Button>
-        </header>
+    <AppShell>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Bidder dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            Welcome back, {user.name.split(' ')[0]}.
+          </p>
+        </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
@@ -100,6 +86,6 @@ export function DashboardPage() {
           </Card>
         </div>
       </div>
-    </main>
+    </AppShell>
   );
 }

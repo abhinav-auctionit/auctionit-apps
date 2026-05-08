@@ -1,10 +1,8 @@
-import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ApiError, type WalletTransaction } from '@auction/api-client';
 import { useApiClient, useAuth } from '@auction/auth';
 import {
   Badge,
-  Button,
   Card,
   CardContent,
   CardHeader,
@@ -16,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@auction/ui';
+import { AppShell } from '../components/AppShell';
 
 const inr = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -34,8 +33,7 @@ const KIND_LABEL: Record<WalletTransaction['kind'], { label: string; isCredit: b
 
 export function WalletPage() {
   const api = useApiClient();
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
 
   const wallet = useQuery({
     queryKey: ['bidder', 'me', 'wallet'],
@@ -49,30 +47,17 @@ export function WalletPage() {
     enabled: !!user,
   });
 
-  async function onLogout() {
-    await logout();
-    navigate('/login', { replace: true });
-  }
-
   if (!user) return null;
 
   return (
-    <main className="min-h-screen bg-background p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <Link
-              to="/"
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              ← Back to dashboard
-            </Link>
-            <h1 className="mt-1 text-2xl font-semibold">My wallet</h1>
-          </div>
-          <Button variant="outline" onClick={onLogout}>
-            Log out
-          </Button>
-        </header>
+    <AppShell>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold">My wallet</h1>
+          <p className="text-sm text-muted-foreground">
+            Used as EMD when you join an auction. Top-ups are processed offline by the admin team.
+          </p>
+        </div>
 
         <Card>
           <CardHeader>
@@ -83,7 +68,6 @@ export function WalletPage() {
               {wallet.data ? formatRs(wallet.data.balance) : '—'}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Top-ups are recorded by the admin team after they receive your offline payment.
               EMD is deducted automatically when you join an auction and refunded when the
               auction ends if you don't win.
             </p>
@@ -153,6 +137,6 @@ export function WalletPage() {
           </CardContent>
         </Card>
       </div>
-    </main>
+    </AppShell>
   );
 }

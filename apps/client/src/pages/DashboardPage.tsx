@@ -1,32 +1,20 @@
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@auction/auth';
-import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@auction/ui';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@auction/ui';
+import { AppShell } from '../components/AppShell';
 
 export function DashboardPage() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  async function onLogout() {
-    await logout();
-    navigate('/login', { replace: true });
-  }
-
+  const { user } = useAuth();
   if (!user) return null;
 
   return (
-    <main className="min-h-screen bg-background p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">Seller dashboard</h1>
-            <p className="text-sm text-muted-foreground">
-              Signed in as {user.name} <Badge variant="secondary" className="ml-1">{user.role}</Badge>
-            </p>
-          </div>
-          <Button variant="outline" onClick={onLogout}>
-            Log out
-          </Button>
-        </header>
+    <AppShell>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Seller dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            Welcome back, {user.name.split(' ')[0]}.
+          </p>
+        </div>
 
         <Card>
           <CardHeader>
@@ -38,6 +26,6 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-    </main>
+    </AppShell>
   );
 }

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   Post,
@@ -44,6 +45,15 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<SafeUser> {
+    // The legacy public register endpoint accepts a `role` field in the body.
+    // Reject creating a user whose role doesn't match the calling app, so
+    // someone can't POST {role:"admin"} from the bidder app.
+    const appKey = this.appKeyOrThrow(req);
+    if (appKey !== dto.role) {
+      throw new ForbiddenException(
+        `cannot register a "${dto.role}" account from the ${appKey} app`,
+      );
+    }
     const user = await this.auth.register(dto);
     await this.startSession(user.id, req, res);
     return user;
@@ -57,6 +67,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<SafeUser> {
     const user = await this.auth.login(dto);
+    this.assertOriginMatchesRole(req, user);
     await this.startSession(user.id, req, res);
     return user;
   }
@@ -77,6 +88,7 @@ export class AuthController {
   ): Promise<SafeUser> {
     const user = await this.auth.findUserByEmailForOtp(dto.email);
     if (!user) throw new UnauthorizedException('account not found');
+    this.assertOriginMatchesRole(req, user);
     await this.otp.verify({
       channel: 'email',
       target: dto.email,
@@ -110,6 +122,7 @@ export class AuthController {
       dto.mobileNumber,
     );
     if (!user) throw new UnauthorizedException('account not found');
+    this.assertOriginMatchesRole(req, user);
     await this.otp.verify({
       channel: 'mobile',
       target: OtpService.mobileTarget(dto.mobileCountryCode, dto.mobileNumber),
@@ -152,6 +165,12 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<SafeUser> {
+    const appKey = this.appKeyOrThrow(req);
+    if (appKey !== 'bidder') {
+      throw new ForbiddenException(
+        'bidder registration is only available on the bidder app',
+      );
+    }
     const user = await this.auth.registerBidder(dto);
     await this.startSession(user.id, req, res);
     return user;
@@ -189,9 +208,33 @@ export class AuthController {
     res.cookie(cookieName, session.id, this.cookieOptions(session.expiresAt));
   }
 
-  private cookieNameForRequest(req: Request): string {
+  private appKeyOrThrow(req: Request): 'admin' | 'bidder' | 'client' {
     const appKey = this.config.appKeyForOrigin(req.get('Origin'));
-    return this.config.sessionCookieNameFor(appKey);
+    if (!appKey) {
+      throw new BadRequestException(
+        'request Origin does not match any configured app — set APP_ADMIN_ORIGINS / APP_BIDDER_ORIGINS / APP_CLIENT_ORIGINS to include this origin',
+      );
+    }
+    return appKey;
+  }
+
+  private cookieNameForRequest(req: Request): string {
+    // appKeyOrThrow guarantees a non-null app key, so sessionCookieNameFor returns a string.
+    return this.config.sessionCookieNameFor(this.appKeyOrThrow(req))!;
+  }
+
+  /**
+   * Reject login attempts where the authenticated user's role doesn't match
+   * the calling frontend. Stops e.g. an admin from logging in via the bidder
+   * app, even before a session is created.
+   */
+  private assertOriginMatchesRole(req: Request, user: SafeUser): void {
+    const appKey = this.appKeyOrThrow(req);
+    if (appKey !== user.role) {
+      throw new ForbiddenException(
+        `accounts with role "${user.role}" cannot sign in here; please use the ${user.role} app`,
+      );
+    }
   }
 
   private cookieOptions(expires: Date): CookieOptions {

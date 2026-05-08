@@ -27,7 +27,7 @@ export class SessionAuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     const appKey = this.config.appKeyForOrigin(req.get('Origin'));
     const cookieName = this.config.sessionCookieNameFor(appKey);
-    const sessionId = req.cookies?.[cookieName];
+    const sessionId = cookieName ? req.cookies?.[cookieName] : undefined;
 
     if (sessionId) {
       const session = await this.sessions.findActive(sessionId);

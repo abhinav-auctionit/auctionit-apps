@@ -29,6 +29,10 @@ import type {
   WalletCreditInput,
   WalletDebitInput,
   WalletTxnKind,
+  ClientCountry,
+  ClientCreateInput,
+  OtherChargeType,
+  StaggeringOfLots,
 } from '@auction/types';
 
 export type ApiClientOptions = {
@@ -226,6 +230,40 @@ export type WalletTransaction = {
   createdBy?: { id: string; name: string; email: string } | null;
 };
 
+export type Client = {
+  id: string;
+  companyName: string;
+  phone: string | null;
+  websiteUrl: string | null;
+  registeredAddress: string;
+  country: ClientCountry;
+  pan: string;
+  tan: string;
+  tin: string;
+  isActive: boolean;
+  prefixAuctionCode: string | null;
+  suffixAuctionCode: string | null;
+  autoExtend: boolean;
+  extendIfLastBidSec: number | null;
+  extendDurationSec: number | null;
+  extensionMaxTimes: number | null;
+  staggeringOfLots: StaggeringOfLots | null;
+  staggeringOfLotsDurationSec: number | null;
+  staggeringOfAuction: boolean | null;
+  staggeringOfAuctionDurationSec: number | null;
+  otherChargeType: OtherChargeType | null;
+  otherChargeAmount: number | null;
+  revenueRate: number;
+  plantTechPersonDetails: string | null;
+  displayMaterialLocation: boolean;
+  displayPlantLocation: boolean;
+  tncFileId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ClientWithTnc = Client & { tncFile: StoredFile | null };
+
 export function createApiClient({ baseUrl }: ApiClientOptions) {
   const json = (method: string, body?: unknown) => ({
     method,
@@ -354,6 +392,12 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
           `/admin/bidder-profiles/${id}/wallet/debit`,
           json('POST', body),
         ),
+    },
+    adminClients: {
+      list: () => request<Client[]>(baseUrl, '/admin/clients'),
+      get: (id: string) => request<ClientWithTnc>(baseUrl, `/admin/clients/${id}`),
+      create: (body: ClientCreateInput) =>
+        request<Client>(baseUrl, '/admin/clients', json('POST', body)),
     },
     inventory: {
       listCategories: () => request<CategoryWithSubcategories[]>(baseUrl, '/categories'),

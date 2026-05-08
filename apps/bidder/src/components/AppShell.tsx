@@ -13,33 +13,21 @@ const NAV: NavItem[] = [
   { kind: 'leaf', label: 'Home', to: '/', end: true },
   {
     kind: 'group',
-    label: 'Inventory',
-    basePaths: ['/inventory', '/items'],
+    label: 'Bidding',
+    basePaths: ['/auctions', '/bids', '/watchlist'],
     children: [
-      { kind: 'leaf', label: 'Categories', to: '/inventory/categories' },
-      { kind: 'leaf', label: 'Attributes', to: '/inventory/attributes' },
-      { kind: 'leaf', label: 'Items', to: '/items' },
+      { kind: 'leaf', label: 'Live auctions', to: '/auctions' },
+      { kind: 'leaf', label: 'My bids', to: '/bids' },
+      { kind: 'leaf', label: 'Watchlist', to: '/watchlist' },
     ],
   },
   {
     kind: 'group',
-    label: 'Users',
-    basePaths: ['/users'],
-    children: [{ kind: 'leaf', label: 'Create user', to: '/users/new' }],
-  },
-  {
-    kind: 'group',
-    label: 'Bidders',
-    basePaths: ['/bidders'],
-    children: [{ kind: 'leaf', label: 'Applications', to: '/bidders' }],
-  },
-  {
-    kind: 'group',
-    label: 'Clients',
-    basePaths: ['/clients'],
+    label: 'Account',
+    basePaths: ['/wallet', '/profile'],
     children: [
-      { kind: 'leaf', label: 'All clients', to: '/clients', end: true },
-      { kind: 'leaf', label: 'Onboard client', to: '/clients/new' },
+      { kind: 'leaf', label: 'Wallet', to: '/wallet' },
+      { kind: 'leaf', label: 'Profile', to: '/profile' },
     ],
   },
 ];
@@ -61,7 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div className="px-5 py-5">
           <Link to="/" className="font-semibold tracking-tight">
-            Auction · Admin
+            Auction · Bidder
           </Link>
         </div>
         <Separator />
