@@ -20,6 +20,7 @@ import {
   Textarea,
 } from '@auction/ui';
 import { AppShell } from '../components/AppShell';
+import { BidderWalletSection } from '../components/BidderWalletSection';
 
 const errMsg = (e: unknown) =>
   e instanceof ApiError ? e.message : e instanceof Error ? e.message : 'Action failed';
@@ -204,6 +205,8 @@ export function BidderDetailPage() {
             {p.rejectionNote && <Field label="Rejection Note" value={p.rejectionNote} />}
           </Section>
         </div>
+
+        <BidderWalletSection profileId={p.id} />
 
         <Card>
           <CardHeader>

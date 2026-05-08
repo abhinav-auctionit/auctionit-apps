@@ -31,6 +31,32 @@ export const envSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().optional(),
   R2_BUCKET: z.string().optional(),
   R2_PUBLIC_BASE_URL: z.string().url().optional(),
+
+  SMS_DRIVER: z.enum(['stub', 'analytics_mantra']).default('stub'),
+  SMS_USERNAME: z.string().optional(),
+  SMS_PASSWORD: z.string().optional(),
+  SMS_SENDER_ID: z.string().default('JIAUCT'),
+  SMS_TYPE: z.string().default('TEXT'),
+  SMS_BASE_URL: z
+    .string()
+    .url()
+    .default('https://bulksms.analyticsmantra.com/sendsms/sendsms.php'),
+  // DLT (TRAI) compliance params — required for Indian gateways. Defaults
+  // match the existing JindalX/JIAUCT registration; override per-environment if
+  // the templates ever change.
+  SMS_DLT_PEID: z.string().default('1101616050000022954'),
+  SMS_DLT_HEADER_ID: z.string().default('1205160327544676712'),
+  SMS_DLT_TEMPLATE_ID: z.string().default('1207161778554839403'),
+  // Token the gateway returns on successful submission. Body match (positive
+  // check) is more reliable than HTTP status alone.
+  SMS_SUCCESS_TOKEN: z.string().default('SUBMIT_SUCCESS'),
+  // Must match the DLT-registered template content character-for-character apart
+  // from the {OTP} placeholder, otherwise the gateway silently drops the message.
+  SMS_OTP_TEMPLATE: z
+    .string()
+    .default(
+      '{OTP} is your Authorization OTP for login verification. OTP will expire in 15 minutes. Regards- JindalX',
+    ),
 });
 
 export type Env = z.infer<typeof envSchema>;

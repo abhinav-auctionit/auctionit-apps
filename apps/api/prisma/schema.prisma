@@ -99,6 +99,16 @@ enum OtpChannel {
   @@map("otp_channel")
 }
 
+enum WalletTxnKind {
+  admin_credit
+  admin_debit_correction
+  emd_debit
+  emd_refund
+  emd_forfeit
+
+  @@map("wallet_txn_kind")
+}
+
 model User {
   id                String   @id @default(uuid()) @db.Uuid
   email             String   @unique @db.VarChar(255)
@@ -110,11 +120,12 @@ model User {
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  sessions      Session[]
-  auctions      Auction[]
-  bids          Bid[]
-  uploadedFiles StoredFile[]
-  bidderProfile BidderProfile?
+  sessions           Session[]
+  auctions           Auction[]
+  bids               Bid[]
+  uploadedFiles      StoredFile[]
+  bidderProfile      BidderProfile?
+  recordedWalletTxns WalletTransaction[] @relation("WalletTxnCreatedBy")
 
   @@unique([mobileCountryCode, mobileNumber], map: "users_mobile_unique")
   @@map("users")
@@ -179,14 +190,48 @@ model BidderProfile {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  panCardFile         StoredFile? @relation("BidderPanCard", fields: [panCardFileId], references: [id], onDelete: SetNull)
-  proofOfAddressFile  StoredFile? @relation("BidderProofOfAddress", fields: [proofOfAddressFileId], references: [id], onDelete: SetNull)
-  cancelledChequeFile StoredFile? @relation("BidderCancelledCheque", fields: [cancelledChequeFileId], references: [id], onDelete: SetNull)
-  otherFile           StoredFile? @relation("BidderOther", fields: [otherFileId], references: [id], onDelete: SetNull)
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  panCardFile         StoredFile?   @relation("BidderPanCard", fields: [panCardFileId], references: [id], onDelete: SetNull)
+  proofOfAddressFile  StoredFile?   @relation("BidderProofOfAddress", fields: [proofOfAddressFileId], references: [id], onDelete: SetNull)
+  cancelledChequeFile StoredFile?   @relation("BidderCancelledCheque", fields: [cancelledChequeFileId], references: [id], onDelete: SetNull)
+  otherFile           StoredFile?   @relation("BidderOther", fields: [otherFileId], references: [id], onDelete: SetNull)
+  wallet              BidderWallet?
 
   @@index([status], map: "bidder_profiles_status_idx")
   @@map("bidder_profiles")
+}
+
+model BidderWallet {
+  id              String   @id @default(uuid()) @db.Uuid
+  bidderProfileId String   @unique @map("bidder_profile_id") @db.Uuid
+  balance         Int      @default(0)
+  currency        String   @default("INR") @db.VarChar(3)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  bidderProfile BidderProfile       @relation(fields: [bidderProfileId], references: [id], onDelete: Cascade)
+  transactions  WalletTransaction[]
+
+  @@map("bidder_wallets")
+}
+
+model WalletTransaction {
+  id            String        @id @default(uuid()) @db.Uuid
+  walletId      String        @map("wallet_id") @db.Uuid
+  kind          WalletTxnKind
+  amount        Int
+  balanceAfter  Int           @map("balance_after")
+  referenceType String?       @map("reference_type") @db.VarChar(32)
+  referenceId   String?       @map("reference_id") @db.Uuid
+  note          String?       @db.Text
+  createdById   String?       @map("created_by_id") @db.Uuid
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  wallet    BidderWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  createdBy User?        @relation("WalletTxnCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([walletId, createdAt(sort: Desc)], map: "wallet_txn_wallet_idx")
+  @@map("wallet_transactions")
 }
 
 model OtpChallenge {
@@ -248,6 +293,7 @@ model Auction {
   startingPriceCents Int           @map("starting_price_cents")
   currentPriceCents  Int           @map("current_price_cents")
   bidIncrementCents  Int           @default(100) @map("bid_increment_cents")
+  emdAmount          Int           @default(0) @map("emd_amount")
   status             AuctionStatus @default(draft)
   startsAt           DateTime      @map("starts_at") @db.Timestamptz(6)
   endsAt             DateTime      @map("ends_at") @db.Timestamptz(6)

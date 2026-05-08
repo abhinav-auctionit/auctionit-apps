@@ -97,4 +97,20 @@ export class AppConfig {
       },
     };
   }
+
+  get sms() {
+    return {
+      driver: this.cs.get('SMS_DRIVER', { infer: true }),
+      username: this.cs.get('SMS_USERNAME', { infer: true }),
+      password: this.cs.get('SMS_PASSWORD', { infer: true }),
+      senderId: this.cs.get('SMS_SENDER_ID', { infer: true }),
+      type: this.cs.get('SMS_TYPE', { infer: true }),
+      baseUrl: this.cs.get('SMS_BASE_URL', { infer: true }),
+      otpTemplate: this.cs.get('SMS_OTP_TEMPLATE', { infer: true }),
+      dltPeid: this.cs.get('SMS_DLT_PEID', { infer: true }),
+      dltHeaderId: this.cs.get('SMS_DLT_HEADER_ID', { infer: true }),
+      dltTemplateId: this.cs.get('SMS_DLT_TEMPLATE_ID', { infer: true }),
+      successToken: this.cs.get('SMS_SUCCESS_TOKEN', { infer: true }),
+    };
+  }
 }

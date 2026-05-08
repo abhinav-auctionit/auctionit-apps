@@ -3,12 +3,15 @@ import {
   BadRequestException,
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
+  InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
 import type { OtpChallenge, OtpChannel } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AppConfig } from '../../config/app-config.service';
+import { SMS_SERVICE, type SmsService } from '../sms/sms.service';
 import { hashPassword, verifyPassword } from './password';
 
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -32,6 +35,7 @@ export class OtpService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: AppConfig,
+    @Inject(SMS_SERVICE) private readonly sms: SmsService,
   ) {}
 
   static mobileTarget(countryCode: string, number: string): string {
@@ -61,7 +65,20 @@ export class OtpService {
         expiresAt,
       },
     });
-    this.deliver(input, code);
+
+    try {
+      await this.deliver(input, code);
+    } catch (err) {
+      // Don't leave an unsent challenge sitting in the table — bidders would get
+      // "no active otp" errors on retry that they couldn't recover from.
+      await this.prisma.otpChallenge
+        .delete({ where: { id: challenge.id } })
+        .catch(() => undefined);
+      throw new InternalServerErrorException(
+        err instanceof Error ? err.message : 'failed to deliver OTP',
+      );
+    }
+
     return { challengeId: challenge.id, expiresAt };
   }
 
@@ -122,16 +139,15 @@ export class OtpService {
     await this.prisma.otpChallenge.delete({ where: { id: challenge.id } });
   }
 
-  private deliver(input: SendInput, code: string): void {
-    if (this.config.isProd) {
-      this.logger.warn(
-        `OTP delivery is stubbed; configure a real provider before production. ` +
-          `purpose=${input.purpose} channel=${input.channel} target=${input.target}`,
-      );
+  private async deliver(input: SendInput, code: string): Promise<void> {
+    if (input.channel === 'mobile') {
+      const message = this.config.sms.otpTemplate.replace(/\{OTP\}/g, code);
+      await this.sms.send({ to: input.target, message });
       return;
     }
+    // Email OTP delivery is still stubbed — replace with a real provider when ready.
     this.logger.log(
-      `[OTP] purpose=${input.purpose} channel=${input.channel} target=${input.target} code=${code}`,
+      `[OTP-EMAIL-STUB] purpose=${input.purpose} target=${input.target} code=${code}`,
     );
   }
 }

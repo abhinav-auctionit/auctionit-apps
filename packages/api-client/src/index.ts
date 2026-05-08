@@ -26,6 +26,9 @@ import type {
   UpdateAttributeInput,
   UpdateItemInput,
   User,
+  WalletCreditInput,
+  WalletDebitInput,
+  WalletTxnKind,
 } from '@auction/types';
 
 export type ApiClientOptions = {
@@ -200,6 +203,29 @@ export type BidderProfileDetail = BidderProfile & {
   otherFile: StoredFile | null;
 };
 
+export type Wallet = {
+  id: string;
+  bidderProfileId: string;
+  balance: number;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WalletTransaction = {
+  id: string;
+  walletId: string;
+  kind: WalletTxnKind;
+  amount: number;
+  balanceAfter: number;
+  referenceType: string | null;
+  referenceId: string | null;
+  note: string | null;
+  createdById: string | null;
+  createdAt: string;
+  createdBy?: { id: string; name: string; email: string } | null;
+};
+
 export function createApiClient({ baseUrl }: ApiClientOptions) {
   const json = (method: string, body?: unknown) => ({
     method,
@@ -245,6 +271,14 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
         request<BidderProfile>(baseUrl, '/bidder/me/profile', json('PATCH', body)),
       submitMyProfile: () =>
         request<BidderProfile>(baseUrl, '/bidder/me/profile/submit', { method: 'POST' }),
+      getMyWallet: () => request<Wallet>(baseUrl, '/bidder/me/wallet'),
+      listMyWalletTxns: (params: { limit?: number; before?: string } = {}) => {
+        const qs = new URLSearchParams();
+        if (params.limit) qs.set('limit', String(params.limit));
+        if (params.before) qs.set('before', params.before);
+        const suffix = qs.toString() ? `?${qs}` : '';
+        return request<WalletTransaction[]>(baseUrl, `/bidder/me/wallet/transactions${suffix}`);
+      },
     },
     files: {
       upload: async (file: File): Promise<StoredFile> => {
@@ -294,6 +328,30 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
         request<BidderProfile>(
           baseUrl,
           `/admin/bidder-profiles/${id}/reject`,
+          json('POST', body),
+        ),
+      getWallet: (id: string) =>
+        request<Wallet>(baseUrl, `/admin/bidder-profiles/${id}/wallet`),
+      listWalletTxns: (id: string, params: { limit?: number; before?: string } = {}) => {
+        const qs = new URLSearchParams();
+        if (params.limit) qs.set('limit', String(params.limit));
+        if (params.before) qs.set('before', params.before);
+        const suffix = qs.toString() ? `?${qs}` : '';
+        return request<WalletTransaction[]>(
+          baseUrl,
+          `/admin/bidder-profiles/${id}/wallet/transactions${suffix}`,
+        );
+      },
+      creditWallet: (id: string, body: WalletCreditInput) =>
+        request<{ wallet: Wallet; transaction: WalletTransaction }>(
+          baseUrl,
+          `/admin/bidder-profiles/${id}/wallet/credit`,
+          json('POST', body),
+        ),
+      debitWallet: (id: string, body: WalletDebitInput) =>
+        request<{ wallet: Wallet; transaction: WalletTransaction }>(
+          baseUrl,
+          `/admin/bidder-profiles/${id}/wallet/debit`,
           json('POST', body),
         ),
     },
