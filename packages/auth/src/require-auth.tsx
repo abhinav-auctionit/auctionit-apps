@@ -53,9 +53,12 @@ function AccessDenied({
   requiredRoles: UserRole[];
   loginPath: string;
 }) {
-  const { user, logout } = useAuth();
+  const { user, logout, appsByRole } = useAuth();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
+
+  // The right app for the user's actual role, if known.
+  const rightAppUrl = user ? appsByRole[user.role] : undefined;
 
   async function onSwitch() {
     setBusy(true);
@@ -77,26 +80,50 @@ function AccessDenied({
         padding: 24,
       }}
     >
-      <div style={{ maxWidth: 420, textAlign: 'center' }}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Access denied</h1>
-        <p style={{ color: '#666', marginTop: 8 }}>
-          You&apos;re signed in as <strong>{user?.email}</strong> ({user?.role}). This area
-          requires {requiredRoles.join(' or ')} access.
+      <div style={{ maxWidth: 460, textAlign: 'center' }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Wrong app for your role</h1>
+        <p style={{ color: '#666', marginTop: 8, lineHeight: 1.5 }}>
+          You&apos;re signed in as <strong>{user?.email}</strong> ({user?.role}). This area is
+          for {requiredRoles.join(' or ')} accounts.
         </p>
-        <button
-          onClick={onSwitch}
-          disabled={busy}
+        <div
           style={{
-            marginTop: 16,
-            padding: '8px 16px',
-            border: '1px solid #ccc',
-            borderRadius: 6,
-            cursor: 'pointer',
-            background: 'white',
+            marginTop: 20,
+            display: 'flex',
+            gap: 8,
+            justifyContent: 'center',
+            flexWrap: 'wrap',
           }}
         >
-          {busy ? 'Signing out…' : 'Sign in with a different account'}
-        </button>
+          {rightAppUrl && (
+            <a
+              href={rightAppUrl}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 6,
+                background: '#16243B',
+                color: 'white',
+                textDecoration: 'none',
+                fontWeight: 500,
+              }}
+            >
+              Open the {user?.role} app →
+            </a>
+          )}
+          <button
+            onClick={onSwitch}
+            disabled={busy}
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #ccc',
+              borderRadius: 6,
+              cursor: busy ? 'not-allowed' : 'pointer',
+              background: 'white',
+            }}
+          >
+            {busy ? 'Signing out…' : 'Sign out & use a different account'}
+          </button>
+        </div>
       </div>
     </div>
   );

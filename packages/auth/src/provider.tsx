@@ -8,7 +8,10 @@ import type {
   OtpVerifyMobileInput,
   RegisterInput,
   User,
+  UserRole,
 } from '@auction/types';
+
+export type AppsByRole = Partial<Record<UserRole, string>>;
 
 export type AuthContextValue = {
   user: User | null;
@@ -19,6 +22,8 @@ export type AuthContextValue = {
   register: (input: RegisterInput) => Promise<User>;
   registerBidder: (input: BidderRegisterInput) => Promise<User>;
   logout: () => Promise<void>;
+  /** Per-role frontend URLs, used by RequireAuth to redirect on role mismatch. */
+  appsByRole: AppsByRole;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -28,9 +33,11 @@ const ME_KEY = ['auth', 'me'] as const;
 
 export function AuthProvider({
   baseUrl,
+  appsByRole = {},
   children,
 }: {
   baseUrl: string;
+  appsByRole?: AppsByRole;
   children: ReactNode;
 }) {
   const api = useMemo(() => createApiClient({ baseUrl }), [baseUrl]);
@@ -94,6 +101,7 @@ export function AuthProvider({
     logout: async () => {
       await logoutMutation.mutateAsync();
     },
+    appsByRole,
   };
 
   return (

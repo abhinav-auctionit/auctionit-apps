@@ -17,6 +17,12 @@ import { BidderDetailPage } from './pages/BidderDetailPage';
 const queryClient = new QueryClient();
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
+const APPS_BY_ROLE = {
+  admin: import.meta.env.VITE_ADMIN_URL ?? 'http://localhost:5175',
+  bidder: import.meta.env.VITE_BIDDER_URL ?? 'http://localhost:5174',
+  client: import.meta.env.VITE_CLIENT_URL ?? 'http://localhost:5173',
+} as const;
+
 const ADMIN = ['admin'] as const;
 
 function adminRoute(element: React.ReactNode) {
@@ -27,7 +33,7 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthProvider baseUrl={apiUrl}>
+        <AuthProvider baseUrl={apiUrl} appsByRole={APPS_BY_ROLE}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
