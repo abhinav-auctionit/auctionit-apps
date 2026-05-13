@@ -114,3 +114,38 @@ export const clientCreateSchema = z
     }
   });
 export type ClientCreateInput = z.infer<typeof clientCreateSchema>;
+
+// -- Locations & contact points ----------------------------------------------
+
+export const clientLocationCreateSchema = z.object({
+  name: trimmed(120, 'Location name'),
+  addressLine: optTrimmed(255),
+  city: trimmed(80, 'City'),
+  state: trimmed(80, 'State'),
+  pincode: trimmed(15, 'Pincode'),
+  country: trimmed(64, 'Country'),
+  isPrimary: z.boolean().default(false),
+});
+export type ClientLocationCreateInput = z.infer<typeof clientLocationCreateSchema>;
+
+export const clientLocationUpdateSchema = clientLocationCreateSchema.partial();
+export type ClientLocationUpdateInput = z.infer<typeof clientLocationUpdateSchema>;
+
+const optEmail = z
+  .union([
+    z.literal('').transform(() => null),
+    z.string().trim().email('Invalid email').max(255),
+    z.null(),
+  ])
+  .optional();
+
+export const clientContactCreateSchema = z.object({
+  name: trimmed(120, 'Contact name'),
+  role: optTrimmed(120),
+  email: optEmail,
+  phone: optTrimmed(30),
+});
+export type ClientContactCreateInput = z.infer<typeof clientContactCreateSchema>;
+
+export const clientContactUpdateSchema = clientContactCreateSchema.partial();
+export type ClientContactUpdateInput = z.infer<typeof clientContactUpdateSchema>;

@@ -342,6 +342,7 @@ model Client {
   tncFileId String?     @map("tnc_file_id") @db.Uuid
   tncFile   StoredFile? @relation("ClientTnc", fields: [tncFileId], references: [id], onDelete: SetNull)
   auctions  Auction[]
+  locations ClientLocation[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -349,6 +350,44 @@ model Client {
   @@unique([pan], map: "clients_pan_unique")
   @@index([isActive], map: "clients_is_active_idx")
   @@map("clients")
+}
+
+model ClientLocation {
+  id        String  @id @default(uuid()) @db.Uuid
+  clientId  String  @map("client_id") @db.Uuid
+  name      String  @db.VarChar(120)
+  addressLine String? @map("address_line") @db.VarChar(255)
+  city      String  @db.VarChar(80)
+  state     String  @db.VarChar(80)
+  pincode   String  @db.VarChar(15)
+  country   String  @db.VarChar(64)
+  isPrimary Boolean @default(false) @map("is_primary")
+
+  client   Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contacts ClientContactPoint[]
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([clientId], map: "client_locations_client_idx")
+  @@map("client_locations")
+}
+
+model ClientContactPoint {
+  id          String  @id @default(uuid()) @db.Uuid
+  locationId  String  @map("location_id") @db.Uuid
+  name        String  @db.VarChar(120)
+  role        String? @db.VarChar(120)
+  email       String? @db.VarChar(255)
+  phone       String? @db.VarChar(30)
+
+  location ClientLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([locationId], map: "client_contact_points_location_idx")
+  @@map("client_contact_points")
 }
 
 model Session {

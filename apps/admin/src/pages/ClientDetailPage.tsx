@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ApiError, type StoredFile } from '@auction/api-client';
+import { ApiError, type ClientWithTnc, type StoredFile } from '@auction/api-client';
 import { useApiClient } from '@auction/auth';
 import {
   Badge,
@@ -9,8 +9,13 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
 } from '@auction/ui';
 import { AppShell } from '../components/AppShell';
+import { ClientLocationsSection } from '../components/ClientLocationsSection';
 
 const inr = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -24,9 +29,17 @@ const STAGGERING_LABEL: Record<string, string> = {
   subsequent_lots: 'Subsequent lots',
 };
 
+const TABS = ['details', 'locations'] as const;
+type TabId = (typeof TABS)[number];
+const isTabId = (v: string | null): v is TabId =>
+  !!v && (TABS as readonly string[]).includes(v);
+
 export function ClientDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const api = useApiClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const activeTab: TabId = isTabId(tabParam) ? tabParam : 'details';
 
   const detail = useQuery({
     queryKey: ['admin', 'client', id],
@@ -83,130 +96,155 @@ export function ClientDetailPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Section title="Company">
-            <Field label="Company name" value={c.companyName} />
-            <Field label="Phone" value={c.phone ?? '—'} />
-            <Field
-              label="Website"
-              value={
-                c.websiteUrl ? (
-                  <a
-                    href={absoluteUrl(c.websiteUrl)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary underline"
-                  >
-                    {c.websiteUrl}
-                  </a>
-                ) : (
-                  '—'
-                )
-              }
-            />
-            <Field label="Country" value={c.country} />
-            <Field label="Registered address" value={c.registeredAddress} />
-          </Section>
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => {
+            const next = new URLSearchParams(searchParams);
+            if (v === 'details') next.delete('tab');
+            else next.set('tab', v);
+            setSearchParams(next, { replace: true });
+          }}
+        >
+          <TabsList>
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="locations">Locations &amp; contacts</TabsTrigger>
+          </TabsList>
 
-          <Section title="Tax & Status">
-            <Field label="PAN" value={<code className="font-mono text-xs">{c.pan}</code>} />
-            <Field label="TAN" value={<code className="font-mono text-xs">{c.tan}</code>} />
-            <Field label="TIN" value={<code className="font-mono text-xs">{c.tin}</code>} />
-            <Field label="Active" value={c.isActive ? 'Yes' : 'No'} />
-          </Section>
+          <TabsContent value="details" className="mt-6">
+            <DetailsTab client={c} />
+          </TabsContent>
 
-          <Section title="Auction Codes">
-            <Field label="Prefix" value={c.prefixAuctionCode ?? '—'} />
-            <Field label="Suffix" value={c.suffixAuctionCode ?? '—'} />
-          </Section>
-
-          <Section title="Auto Extend">
-            <Field label="Enabled" value={c.autoExtend ? 'Yes' : 'No'} />
-            {c.autoExtend && (
-              <>
-                <Field
-                  label="Extend if last bid"
-                  value={c.extendIfLastBidSec != null ? `${c.extendIfLastBidSec} sec` : '—'}
-                />
-                <Field
-                  label="Extend duration"
-                  value={c.extendDurationSec != null ? `${c.extendDurationSec} sec` : '—'}
-                />
-                <Field
-                  label="Extension count"
-                  value={c.extensionMaxTimes != null ? String(c.extensionMaxTimes) : '—'}
-                />
-              </>
-            )}
-          </Section>
-
-          <Section title="Staggering">
-            <Field
-              label="Lots"
-              value={
-                c.staggeringOfLots ? STAGGERING_LABEL[c.staggeringOfLots] ?? c.staggeringOfLots : '—'
-              }
-            />
-            {c.staggeringOfLots && c.staggeringOfLots !== 'none' && (
-              <Field
-                label="Lot duration"
-                value={
-                  c.staggeringOfLotsDurationSec != null
-                    ? `${c.staggeringOfLotsDurationSec} sec`
-                    : '—'
-                }
-              />
-            )}
-            <Field
-              label="Auction"
-              value={
-                c.staggeringOfAuction == null ? '—' : c.staggeringOfAuction ? 'Yes' : 'No'
-              }
-            />
-            {c.staggeringOfAuction && (
-              <Field
-                label="Auction duration"
-                value={
-                  c.staggeringOfAuctionDurationSec != null
-                    ? `${c.staggeringOfAuctionDurationSec} sec`
-                    : '—'
-                }
-              />
-            )}
-          </Section>
-
-          <Section title="Charges & Revenue">
-            <Field
-              label="Other charge"
-              value={
-                c.otherChargeType
-                  ? c.otherChargeType === 'percentage'
-                    ? `${c.otherChargeAmount ?? 0}%`
-                    : inr.format(c.otherChargeAmount ?? 0)
-                  : '—'
-              }
-            />
-            <Field label="Revenue rate" value={inr.format(c.revenueRate)} />
-            <Field label="Plant tech contact" value={c.plantTechPersonDetails ?? '—'} />
-          </Section>
-
-          <Section title="Display Preferences" full>
-            <Field
-              label="Material location"
-              value={c.displayMaterialLocation ? 'Shown to bidders' : 'Hidden'}
-            />
-            <Field
-              label="Plant location"
-              value={c.displayPlantLocation ? 'Shown to bidders' : 'Hidden'}
-            />
-          </Section>
-
-          <Section title="Terms & Conditions" full>
-            <TncLink file={c.tncFile} />
-          </Section>
-        </div>
+          <TabsContent value="locations" className="mt-6">
+            <ClientLocationsSection clientId={id} defaultCountry={c.country} />
+          </TabsContent>
+        </Tabs>
       </div>
     </AppShell>
+  );
+}
+
+function DetailsTab({ client: c }: { client: ClientWithTnc }) {
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      <Section title="Company">
+        <Field label="Company name" value={c.companyName} />
+        <Field label="Phone" value={c.phone ?? '—'} />
+        <Field
+          label="Website"
+          value={
+            c.websiteUrl ? (
+              <a
+                href={absoluteUrl(c.websiteUrl)}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary underline"
+              >
+                {c.websiteUrl}
+              </a>
+            ) : (
+              '—'
+            )
+          }
+        />
+        <Field label="Country" value={c.country} />
+        <Field label="Registered address" value={c.registeredAddress} />
+      </Section>
+
+      <Section title="Tax & Status">
+        <Field label="PAN" value={<code className="font-mono text-xs">{c.pan}</code>} />
+        <Field label="TAN" value={<code className="font-mono text-xs">{c.tan}</code>} />
+        <Field label="TIN" value={<code className="font-mono text-xs">{c.tin}</code>} />
+        <Field label="Active" value={c.isActive ? 'Yes' : 'No'} />
+      </Section>
+
+      <Section title="Auction Codes">
+        <Field label="Prefix" value={c.prefixAuctionCode ?? '—'} />
+        <Field label="Suffix" value={c.suffixAuctionCode ?? '—'} />
+      </Section>
+
+      <Section title="Auto Extend">
+        <Field label="Enabled" value={c.autoExtend ? 'Yes' : 'No'} />
+        {c.autoExtend && (
+          <>
+            <Field
+              label="Extend if last bid"
+              value={c.extendIfLastBidSec != null ? `${c.extendIfLastBidSec} sec` : '—'}
+            />
+            <Field
+              label="Extend duration"
+              value={c.extendDurationSec != null ? `${c.extendDurationSec} sec` : '—'}
+            />
+            <Field
+              label="Extension count"
+              value={c.extensionMaxTimes != null ? String(c.extensionMaxTimes) : '—'}
+            />
+          </>
+        )}
+      </Section>
+
+      <Section title="Staggering">
+        <Field
+          label="Lots"
+          value={
+            c.staggeringOfLots ? STAGGERING_LABEL[c.staggeringOfLots] ?? c.staggeringOfLots : '—'
+          }
+        />
+        {c.staggeringOfLots && c.staggeringOfLots !== 'none' && (
+          <Field
+            label="Lot duration"
+            value={
+              c.staggeringOfLotsDurationSec != null
+                ? `${c.staggeringOfLotsDurationSec} sec`
+                : '—'
+            }
+          />
+        )}
+        <Field
+          label="Auction"
+          value={c.staggeringOfAuction == null ? '—' : c.staggeringOfAuction ? 'Yes' : 'No'}
+        />
+        {c.staggeringOfAuction && (
+          <Field
+            label="Auction duration"
+            value={
+              c.staggeringOfAuctionDurationSec != null
+                ? `${c.staggeringOfAuctionDurationSec} sec`
+                : '—'
+            }
+          />
+        )}
+      </Section>
+
+      <Section title="Charges & Revenue">
+        <Field
+          label="Other charge"
+          value={
+            c.otherChargeType
+              ? c.otherChargeType === 'percentage'
+                ? `${c.otherChargeAmount ?? 0}%`
+                : inr.format(c.otherChargeAmount ?? 0)
+              : '—'
+          }
+        />
+        <Field label="Revenue rate" value={inr.format(c.revenueRate)} />
+        <Field label="Plant tech contact" value={c.plantTechPersonDetails ?? '—'} />
+      </Section>
+
+      <Section title="Display Preferences" full>
+        <Field
+          label="Material location"
+          value={c.displayMaterialLocation ? 'Shown to bidders' : 'Hidden'}
+        />
+        <Field
+          label="Plant location"
+          value={c.displayPlantLocation ? 'Shown to bidders' : 'Hidden'}
+        />
+      </Section>
+
+      <Section title="Terms & Conditions" full>
+        <TncLink file={c.tncFile} />
+      </Section>
+    </div>
   );
 }
 

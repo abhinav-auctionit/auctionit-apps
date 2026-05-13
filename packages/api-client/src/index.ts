@@ -31,6 +31,10 @@ import type {
   WalletTxnKind,
   ClientCountry,
   ClientCreateInput,
+  ClientLocationCreateInput,
+  ClientLocationUpdateInput,
+  ClientContactCreateInput,
+  ClientContactUpdateInput,
   OtherChargeType,
   StaggeringOfLots,
   AuctionStatus,
@@ -282,6 +286,35 @@ export type Client = {
 };
 
 export type ClientWithTnc = Client & { tncFile: StoredFile | null };
+
+export type ClientContactPoint = {
+  id: string;
+  locationId: string;
+  name: string;
+  role: string | null;
+  email: string | null;
+  phone: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ClientLocation = {
+  id: string;
+  clientId: string;
+  name: string;
+  addressLine: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+  isPrimary: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ClientLocationWithContacts = ClientLocation & {
+  contacts: ClientContactPoint[];
+};
 
 export type Auction = {
   id: string;
@@ -538,6 +571,49 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
       get: (id: string) => request<ClientWithTnc>(baseUrl, `/admin/clients/${id}`),
       create: (body: ClientCreateInput) =>
         request<Client>(baseUrl, '/admin/clients', json('POST', body)),
+
+      listLocations: (id: string) =>
+        request<ClientLocationWithContacts[]>(baseUrl, `/admin/clients/${id}/locations`),
+      createLocation: (id: string, body: ClientLocationCreateInput) =>
+        request<ClientLocationWithContacts>(
+          baseUrl,
+          `/admin/clients/${id}/locations`,
+          json('POST', body),
+        ),
+      updateLocation: (id: string, locationId: string, body: ClientLocationUpdateInput) =>
+        request<ClientLocationWithContacts>(
+          baseUrl,
+          `/admin/clients/${id}/locations/${locationId}`,
+          json('PATCH', body),
+        ),
+      deleteLocation: (id: string, locationId: string) =>
+        request<void>(baseUrl, `/admin/clients/${id}/locations/${locationId}`, {
+          method: 'DELETE',
+        }),
+
+      createContact: (id: string, locationId: string, body: ClientContactCreateInput) =>
+        request<ClientContactPoint>(
+          baseUrl,
+          `/admin/clients/${id}/locations/${locationId}/contacts`,
+          json('POST', body),
+        ),
+      updateContact: (
+        id: string,
+        locationId: string,
+        contactId: string,
+        body: ClientContactUpdateInput,
+      ) =>
+        request<ClientContactPoint>(
+          baseUrl,
+          `/admin/clients/${id}/locations/${locationId}/contacts/${contactId}`,
+          json('PATCH', body),
+        ),
+      deleteContact: (id: string, locationId: string, contactId: string) =>
+        request<void>(
+          baseUrl,
+          `/admin/clients/${id}/locations/${locationId}/contacts/${contactId}`,
+          { method: 'DELETE' },
+        ),
     },
     adminAuctions: {
       list: (params: { clientId?: string; code?: string; status?: AuctionStatus } = {}) => {
