@@ -45,12 +45,14 @@ import type {
   StaggeringOfLots,
   AuctionStatus,
   AuctionType,
+  AttachToLotsInput,
+  AttachToConsolidatedInput,
   CreateAuctionInput,
   CreateLotInput,
+  LotOutcomeNoteInput,
+  LotOutcomeStatus,
   UpdateAuctionInput,
   UpdateLotInput,
-  InvitationNotificationStatus,
-  InviteBiddersInput,
 } from '@auction/types';
 
 export type ApiClientOptions = {
@@ -229,6 +231,7 @@ export type Wallet = {
   id: string;
   bidderProfileId: string;
   balance: number;
+  lockedBalance: number;
   currency: string;
   createdAt: string;
   updatedAt: string;
@@ -256,6 +259,7 @@ export type BidderWalletRow = {
   contactNumber: string;
   user: { id: string; name: string; email: string };
   balance: number;
+  lockedBalance: number;
   walletUpdatedAt: string | null;
 };
 
@@ -348,7 +352,7 @@ export type Auction = {
   name: string;
   auctionType: AuctionType;
   status: AuctionStatus;
-  emdAmount: number;
+  consolidatedEmdAmount: number | null;
   description: string | null;
   createdById: string | null;
   createdAt: string;
@@ -393,6 +397,13 @@ export type Lot = {
   endTime: string;
   startingPriceCents: number;
   bidIncrementCents: number;
+  emdAmount: number;
+  winnerId: string | null;
+  winningBidAmountCents: number | null;
+  outcomeStatus: LotOutcomeStatus | null;
+  liftedAt: string | null;
+  forfeitedAt: string | null;
+  rejectedAt: string | null;
   createdAt: string;
   updatedAt: string;
   item: LotItemRef | null;
@@ -403,6 +414,120 @@ export type AuctionDetail = Auction & {
   location: AuctionLocationSummary | null;
   createdBy: { id: string; name: string; email: string } | null;
   lots: Lot[];
+};
+
+export type BidderSearchResult = {
+  id: string;
+  fullName: string;
+  companyName: string | null;
+  contactCountryCode: string;
+  contactNumber: string;
+  user: { id: string; name: string; email: string };
+  wallet: { balance: number; lockedBalance: number } | null;
+};
+
+export type ParticipantLotRow = {
+  lotId: string;
+  lotNo: number;
+  itemName: string;
+  lotEmdAmount: number;
+  emdHeldAmount: number;
+  hasBid: boolean;
+  attachedAt: string;
+  releasedAt: string | null;
+};
+
+export type ParticipantBidder = {
+  bidderProfileId: string;
+  profile: {
+    id: string;
+    fullName: string;
+    companyName: string | null;
+    contactCountryCode: string;
+    contactNumber: string;
+    user: { id: string; name: string; email: string };
+  };
+  mode: 'lot' | 'consolidated';
+  totalEmdHeld: number;
+  consolidatedSettledAt: string | null;
+  lots: ParticipantLotRow[];
+  auctionParticipationId: string | null;
+};
+
+export type ParticipantsView = {
+  mode: 'lot' | 'consolidated' | 'empty';
+  bidders: ParticipantBidder[];
+};
+
+export type AttachFailure = {
+  bidderProfileId: string;
+  reason: 'not_found' | 'not_approved' | 'insufficient_balance';
+  message: string;
+};
+
+export type AttachResult = {
+  created: number;
+  skippedExisting: number;
+  failures: AttachFailure[];
+};
+
+export type BidderAuctionSummary = {
+  id: string;
+  code: string;
+  name: string;
+  auctionType: AuctionType;
+  status: AuctionStatus;
+  consolidatedEmdAmount: number | null;
+  client: { id: string; companyName: string };
+  mode: 'lot' | 'consolidated';
+  lotCount: number;
+  totalEmdHeld: number;
+  earliestStartTime: string | null;
+  latestEndTime: string | null;
+  consolidatedSettledAt: string | null;
+};
+
+export type BidderAuctionLot = {
+  lotId: string;
+  lotNo: number;
+  itemName: string;
+  description: string | null;
+  qty: string;
+  uom: Uom;
+  startTime: string;
+  endTime: string;
+  startingPriceCents: number;
+  bidIncrementCents: number;
+  lotEmdAmount: number;
+  emdHeldAmount: number;
+  attachedAt: string;
+  releasedAt: string | null;
+  outcomeStatus: LotOutcomeStatus | null;
+  isWinner: boolean;
+  winningBidAmountCents: number | null;
+};
+
+export type BidderAuctionDetail = {
+  auction: {
+    id: string;
+    code: string;
+    name: string;
+    auctionType: AuctionType;
+    status: AuctionStatus;
+    consolidatedEmdAmount: number | null;
+    description: string | null;
+    client: { id: string; companyName: string };
+    location: { id: string; name: string; city: string; state: string } | null;
+  };
+  mode: 'lot' | 'consolidated';
+  consolidated: {
+    heldAmount: number;
+    settledAt: string | null;
+    settlementRefundAmount: number | null;
+    settlementForfeitAmount: number | null;
+    settlementShortfallAmount: number;
+  } | null;
+  lots: BidderAuctionLot[];
 };
 
 export type AuctionHistoryRow = {
@@ -461,71 +586,6 @@ export type ClientInternalContactAssignment = {
   kamClientCount: number | null;
 };
 
-export type AuctionInvitation = {
-  id: string;
-  auctionId: string;
-  bidderProfileId: string;
-  invitedById: string | null;
-  invitedAt: string;
-  notificationStatus: InvitationNotificationStatus;
-  notificationSentAt: string | null;
-  notificationError: string | null;
-  joinedAt: string | null;
-};
-
-export type BidderAuctionSummary = {
-  id: string;
-  code: string;
-  name: string;
-  auctionType: AuctionType;
-  status: AuctionStatus;
-  emdAmount: number;
-  description: string | null;
-  client: { id: string; companyName: string };
-  lots: Array<{
-    id: string;
-    lotNo: number;
-    itemName: string;
-    qty: string;
-    uom: Uom;
-    auctionDate: string;
-    startTime: string;
-    endTime: string;
-    startingPriceCents: number;
-    bidIncrementCents: number;
-  }>;
-};
-
-export type BidderInvitation = AuctionInvitation & {
-  auction: BidderAuctionSummary;
-};
-
-export type AuctionInvitationWithBidder = AuctionInvitation & {
-  bidderProfile: {
-    id: string;
-    fullName: string;
-    contactCountryCode: string;
-    contactNumber: string;
-    companyName: string | null;
-    status: 'draft' | 'pending_approval' | 'approved' | 'rejected';
-    user: { id: string; email: string; name: string };
-  };
-  invitedBy: { id: string; name: string; email: string } | null;
-};
-
-export type InviteResult = {
-  summary: {
-    requested: number;
-    created: number;
-    skippedExisting: number;
-    notSent: number;
-    sent: number;
-    failed: number;
-    notFound: string[];
-  };
-  invitations: AuctionInvitation[];
-};
-
 export function createApiClient({ baseUrl }: ApiClientOptions) {
   const json = (method: string, body?: unknown) => ({
     method,
@@ -579,16 +639,10 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
         const suffix = qs.toString() ? `?${qs}` : '';
         return request<WalletTransaction[]>(baseUrl, `/bidder/me/wallet/transactions${suffix}`);
       },
-      listMyInvitations: () =>
-        request<BidderInvitation[]>(baseUrl, '/bidder/me/invitations'),
-      getInvitedAuction: (auctionId: string) =>
-        request<BidderInvitation>(baseUrl, `/bidder/me/auctions/${auctionId}`),
-      joinAuction: (auctionId: string) =>
-        request<AuctionInvitation>(
-          baseUrl,
-          `/bidder/me/auctions/${auctionId}/join`,
-          { method: 'POST' },
-        ),
+      listMyAuctions: () =>
+        request<BidderAuctionSummary[]>(baseUrl, '/bidder/me/auctions'),
+      getMyAuction: (auctionId: string) =>
+        request<BidderAuctionDetail>(baseUrl, `/bidder/me/auctions/${auctionId}`),
     },
     files: {
       upload: async (file: File): Promise<StoredFile> => {
@@ -642,6 +696,14 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
         ),
       listWallets: () =>
         request<BidderWalletRow[]>(baseUrl, '/admin/bidder-profiles/wallets'),
+      search: (params: { q: string; excludeAttachedTo?: string }) => {
+        const qs = new URLSearchParams({ q: params.q });
+        if (params.excludeAttachedTo) qs.set('excludeAttachedTo', params.excludeAttachedTo);
+        return request<BidderSearchResult[]>(
+          baseUrl,
+          `/admin/bidder-profiles/search?${qs}`,
+        );
+      },
       getWallet: (id: string) =>
         request<Wallet>(baseUrl, `/admin/bidder-profiles/${id}/wallet`),
       listWalletTxns: (id: string, params: { limit?: number; before?: string } = {}) => {
@@ -777,19 +839,57 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
         request<Lot>(baseUrl, `/admin/auctions/${id}/lots/${lotId}`, json('PATCH', body)),
       deleteLot: (id: string, lotId: string) =>
         request<void>(baseUrl, `/admin/auctions/${id}/lots/${lotId}`, { method: 'DELETE' }),
-      listInvitations: (id: string) =>
-        request<AuctionInvitationWithBidder[]>(baseUrl, `/admin/auctions/${id}/invitations`),
-      invite: (id: string, body: InviteBiddersInput) =>
-        request<InviteResult>(
+
+      // -- Participants ----------------------------------------------------
+      listParticipants: (id: string) =>
+        request<ParticipantsView>(baseUrl, `/admin/auctions/${id}/participants`),
+      attachToLots: (id: string, body: AttachToLotsInput) =>
+        request<AttachResult>(
           baseUrl,
-          `/admin/auctions/${id}/invitations`,
+          `/admin/auctions/${id}/participants/lots`,
           json('POST', body),
         ),
-      uninvite: (id: string, invitationId: string) =>
+      attachToConsolidated: (id: string, body: AttachToConsolidatedInput) =>
+        request<AttachResult>(
+          baseUrl,
+          `/admin/auctions/${id}/participants/consolidated`,
+          json('POST', body),
+        ),
+      detachFromLot: (id: string, lotId: string, bidderProfileId: string) =>
         request<void>(
           baseUrl,
-          `/admin/auctions/${id}/invitations/${invitationId}`,
+          `/admin/auctions/${id}/lots/${lotId}/participants/${bidderProfileId}`,
           { method: 'DELETE' },
+        ),
+      detachFromAuction: (id: string, bidderProfileId: string) =>
+        request<void>(
+          baseUrl,
+          `/admin/auctions/${id}/participants/${bidderProfileId}`,
+          { method: 'DELETE' },
+        ),
+
+      // -- Lifecycle -------------------------------------------------------
+      end: (id: string) =>
+        request<Auction>(baseUrl, `/admin/auctions/${id}/end`, { method: 'POST' }),
+      cancel: (id: string, body: LotOutcomeNoteInput) =>
+        request<Auction>(baseUrl, `/admin/auctions/${id}/cancel`, json('POST', body)),
+      markLotLifted: (id: string, lotId: string, body: LotOutcomeNoteInput) =>
+        request<Lot>(
+          baseUrl,
+          `/admin/auctions/${id}/lots/${lotId}/mark-lifted`,
+          json('POST', body),
+        ),
+      forfeitLot: (id: string, lotId: string, body: LotOutcomeNoteInput) =>
+        request<Lot>(
+          baseUrl,
+          `/admin/auctions/${id}/lots/${lotId}/forfeit`,
+          json('POST', body),
+        ),
+      rejectLotByClient: (id: string, lotId: string, body: LotOutcomeNoteInput) =>
+        request<Lot>(
+          baseUrl,
+          `/admin/auctions/${id}/lots/${lotId}/reject-by-client`,
+          json('POST', body),
         ),
     },
     inventory: {

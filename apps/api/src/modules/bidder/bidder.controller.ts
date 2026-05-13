@@ -17,7 +17,7 @@ import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { SafeUser } from '../auth/session.service';
 import { BidderService } from './bidder.service';
-import { BidderInvitationsService } from './bidder-invitations.service';
+import { BidderParticipationsService } from './bidder-participations.service';
 import { WalletService } from './wallet.service';
 import { BidderProfilePatchDto } from './dto/bidder-profile-patch.dto';
 import { STATES_BY_COUNTRY } from './constants';
@@ -28,7 +28,7 @@ export class BidderController {
   constructor(
     private readonly bidder: BidderService,
     private readonly wallet: WalletService,
-    private readonly invitations: BidderInvitationsService,
+    private readonly participations: BidderParticipationsService,
   ) {}
 
   @Public()
@@ -78,29 +78,20 @@ export class BidderController {
     return this.wallet.listTransactions(wallet.bidderProfileId, parsed.data);
   }
 
-  // -- Invitations + join ---------------------------------------------------
+  // -- Auctions (participation-driven) --------------------------------------
 
   @Roles('bidder')
-  @Get('me/invitations')
-  listMyInvitations(@CurrentUser() user: SafeUser) {
-    return this.invitations.listInvitations(user.id);
+  @Get('me/auctions')
+  listMyAuctions(@CurrentUser() user: SafeUser) {
+    return this.participations.listMyAuctions(user.id);
   }
 
   @Roles('bidder')
   @Get('me/auctions/:id')
-  getInvitedAuction(
+  getMyAuction(
     @CurrentUser() user: SafeUser,
     @Param('id', ParseUUIDPipe) auctionId: string,
   ) {
-    return this.invitations.getInvitedAuction(user.id, auctionId);
-  }
-
-  @Roles('bidder')
-  @Post('me/auctions/:id/join')
-  joinAuction(
-    @CurrentUser() user: SafeUser,
-    @Param('id', ParseUUIDPipe) auctionId: string,
-  ) {
-    return this.invitations.joinAuction(user.id, auctionId);
+    return this.participations.getMyAuction(user.id, auctionId);
   }
 }

@@ -17,12 +17,15 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { SafeUser } from '../auth/session.service';
 import { AuctionsService } from './auctions.service';
-import { InvitationsService } from './invitations.service';
+import { ParticipantsService } from './participants.service';
+import { AuctionLifecycleService } from './auction-lifecycle.service';
 import { CreateAuctionDto } from './dto/create-auction.dto';
 import { UpdateAuctionDto } from './dto/update-auction.dto';
 import { CreateLotDto } from './dto/create-lot.dto';
 import { UpdateLotDto } from './dto/update-lot.dto';
-import { InviteBiddersDto } from './dto/invite-bidders.dto';
+import { AttachToLotsDto } from './dto/attach-to-lots.dto';
+import { AttachToConsolidatedDto } from './dto/attach-to-consolidated.dto';
+import { LotOutcomeNoteDto } from './dto/lot-outcome-note.dto';
 
 @ApiTags('admin/auctions')
 @Roles('admin')
@@ -30,7 +33,8 @@ import { InviteBiddersDto } from './dto/invite-bidders.dto';
 export class AdminAuctionsController {
   constructor(
     private readonly auctions: AuctionsService,
-    private readonly invitations: InvitationsService,
+    private readonly participants: ParticipantsService,
+    private readonly lifecycle: AuctionLifecycleService,
   ) {}
 
   @Get()
@@ -82,28 +86,95 @@ export class AdminAuctionsController {
     return this.auctions.deleteLot(id, lotId);
   }
 
-  // -- Invitations -----------------------------------------------------------
+  // -- Participants ----------------------------------------------------------
 
-  @Get(':id/invitations')
-  listInvitations(@Param('id', ParseUUIDPipe) id: string) {
-    return this.invitations.list(id);
+  @Get(':id/participants')
+  listParticipants(@Param('id', ParseUUIDPipe) id: string) {
+    return this.participants.listParticipants(id);
   }
 
-  @Post(':id/invitations')
-  invite(
+  @Post(':id/participants/lots')
+  attachToLots(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: InviteBiddersDto,
+    @Body() dto: AttachToLotsDto,
     @CurrentUser() user: SafeUser,
   ) {
-    return this.invitations.invite(id, dto.bidderProfileIds, user.id);
+    return this.participants.attachToLots(id, dto, user.id);
   }
 
-  @Delete(':id/invitations/:invitationId')
-  @HttpCode(204)
-  uninvite(
+  @Post(':id/participants/consolidated')
+  attachToConsolidated(
     @Param('id', ParseUUIDPipe) id: string,
-    @Param('invitationId', ParseUUIDPipe) invitationId: string,
+    @Body() dto: AttachToConsolidatedDto,
+    @CurrentUser() user: SafeUser,
   ) {
-    return this.invitations.uninvite(id, invitationId);
+    return this.participants.attachToAuctionConsolidated(id, dto, user.id);
+  }
+
+  @Delete(':id/lots/:lotId/participants/:bidderProfileId')
+  @HttpCode(204)
+  detachFromLot(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('lotId', ParseUUIDPipe) lotId: string,
+    @Param('bidderProfileId', ParseUUIDPipe) bidderProfileId: string,
+    @CurrentUser() user: SafeUser,
+  ) {
+    return this.participants.detachFromLot(id, lotId, bidderProfileId, user.id);
+  }
+
+  @Delete(':id/participants/:bidderProfileId')
+  @HttpCode(204)
+  detachFromAuction(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('bidderProfileId', ParseUUIDPipe) bidderProfileId: string,
+    @CurrentUser() user: SafeUser,
+  ) {
+    return this.participants.detachFromAuction(id, bidderProfileId, user.id);
+  }
+
+  // -- Lifecycle (end + cancel + per-lot outcomes) ---------------------------
+
+  @Post(':id/end')
+  end(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: SafeUser) {
+    return this.lifecycle.endAuction(id, user.id);
+  }
+
+  @Post(':id/cancel')
+  cancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: LotOutcomeNoteDto,
+    @CurrentUser() user: SafeUser,
+  ) {
+    return this.lifecycle.cancelAuction(id, dto.note ?? null, user.id);
+  }
+
+  @Post(':id/lots/:lotId/mark-lifted')
+  markLotLifted(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('lotId', ParseUUIDPipe) lotId: string,
+    @Body() dto: LotOutcomeNoteDto,
+    @CurrentUser() user: SafeUser,
+  ) {
+    return this.lifecycle.markLotLifted(id, lotId, dto.note ?? null, user.id);
+  }
+
+  @Post(':id/lots/:lotId/forfeit')
+  forfeitLot(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('lotId', ParseUUIDPipe) lotId: string,
+    @Body() dto: LotOutcomeNoteDto,
+    @CurrentUser() user: SafeUser,
+  ) {
+    return this.lifecycle.forfeitLot(id, lotId, dto.note ?? null, user.id);
+  }
+
+  @Post(':id/lots/:lotId/reject-by-client')
+  rejectLotByClient(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('lotId', ParseUUIDPipe) lotId: string,
+    @Body() dto: LotOutcomeNoteDto,
+    @CurrentUser() user: SafeUser,
+  ) {
+    return this.lifecycle.rejectLotByClient(id, lotId, dto.note ?? null, user.id);
   }
 }

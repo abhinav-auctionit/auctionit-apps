@@ -3,8 +3,8 @@ import { z } from 'zod';
 export const walletTxnKindSchema = z.enum([
   'admin_credit',
   'admin_debit_correction',
-  'emd_debit',
-  'emd_refund',
+  'emd_hold',
+  'emd_release',
   'emd_forfeit',
 ]);
 export type WalletTxnKind = z.infer<typeof walletTxnKindSchema>;

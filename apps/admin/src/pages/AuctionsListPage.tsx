@@ -136,7 +136,7 @@ export function AuctionsListPage() {
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Lots</TableHead>
-                    <TableHead className="text-right">EMD (₹)</TableHead>
+                    <TableHead className="text-right">Consolidated EMD (₹)</TableHead>
                     <TableHead>Created</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -165,7 +165,9 @@ export function AuctionsListPage() {
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{a._count.lots}</TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {a.emdAmount.toLocaleString('en-IN')}
+                          {a.consolidatedEmdAmount != null
+                            ? a.consolidatedEmdAmount.toLocaleString('en-IN')
+                            : '—'}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {new Date(a.createdAt).toLocaleDateString()}

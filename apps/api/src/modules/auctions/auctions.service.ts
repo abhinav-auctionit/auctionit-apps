@@ -109,7 +109,7 @@ export class AuctionsService {
           code: dto.code,
           name: dto.name,
           auctionType: dto.auctionType,
-          emdAmount: dto.emdAmount,
+          consolidatedEmdAmount: dto.consolidatedEmdAmount ?? null,
           description: dto.description ?? null,
           createdById,
         },
@@ -133,6 +133,18 @@ export class AuctionsService {
         throw new BadRequestException('locationId: location does not belong to this client');
       }
     }
+    // Block consolidated EMD edits once anyone is attached — held money would
+    // no longer match the configured amount. Admin must detach first.
+    if (dto.consolidatedEmdAmount !== undefined) {
+      const attached = await this.prisma.auctionParticipation.count({
+        where: { auctionId: id },
+      });
+      if (attached > 0) {
+        throw new ConflictException(
+          'cannot change consolidated EMD while bidders are attached; detach them first',
+        );
+      }
+    }
     try {
       return await this.prisma.auction.update({
         where: { id },
@@ -141,7 +153,9 @@ export class AuctionsService {
           ...(dto.code !== undefined ? { code: dto.code } : {}),
           ...(dto.name !== undefined ? { name: dto.name } : {}),
           ...(dto.auctionType !== undefined ? { auctionType: dto.auctionType } : {}),
-          ...(dto.emdAmount !== undefined ? { emdAmount: dto.emdAmount } : {}),
+          ...(dto.consolidatedEmdAmount !== undefined
+            ? { consolidatedEmdAmount: dto.consolidatedEmdAmount }
+            : {}),
           ...(dto.description !== undefined ? { description: dto.description } : {}),
           ...(dto.status !== undefined ? { status: dto.status } : {}),
         },
@@ -194,6 +208,7 @@ export class AuctionsService {
         endTime: dto.endTime,
         startingPriceCents: dto.startingPriceCents,
         bidIncrementCents: dto.bidIncrementCents,
+        emdAmount: dto.emdAmount,
       },
       include: LOT_INCLUDE,
     });
@@ -210,6 +225,18 @@ export class AuctionsService {
         select: { id: true },
       });
       if (!item) throw new BadRequestException('itemId: item not found');
+    }
+    // Block EMD edits while any participation row exists for this lot — held
+    // money would no longer match the configured amount.
+    if (dto.emdAmount !== undefined) {
+      const attached = await this.prisma.lotParticipation.count({
+        where: { lotId },
+      });
+      if (attached > 0) {
+        throw new ConflictException(
+          'cannot change lot EMD while bidders are attached; detach them first',
+        );
+      }
     }
     return this.prisma.lot.update({
       where: { id: lotId },
@@ -228,6 +255,7 @@ export class AuctionsService {
         ...(dto.bidIncrementCents !== undefined
           ? { bidIncrementCents: dto.bidIncrementCents }
           : {}),
+        ...(dto.emdAmount !== undefined ? { emdAmount: dto.emdAmount } : {}),
       },
       include: LOT_INCLUDE,
     });
@@ -265,7 +293,7 @@ export class AuctionsService {
         name: true,
         auctionType: true,
         status: true,
-        emdAmount: true,
+        consolidatedEmdAmount: true,
         description: true,
         client: { select: { companyName: true } },
         lots: {

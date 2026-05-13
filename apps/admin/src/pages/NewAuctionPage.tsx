@@ -43,7 +43,7 @@ export function NewAuctionPage() {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [auctionType, setAuctionType] = useState<AuctionType>('forward');
-  const [emd, setEmd] = useState('0');
+  const [emd, setEmd] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -54,16 +54,19 @@ export function NewAuctionPage() {
   });
 
   const create = useMutation({
-    mutationFn: () =>
-      api.adminAuctions.create({
+    mutationFn: () => {
+      const parsed = emd.trim() === '' ? null : Number(emd);
+      return api.adminAuctions.create({
         clientId,
         locationId: locationId || null,
         code: code.trim(),
         name: name.trim(),
         auctionType,
-        emdAmount: Number(emd) || 0,
+        consolidatedEmdAmount:
+          parsed != null && Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : null,
         description: description.trim() || null,
-      }),
+      });
+    },
     onSuccess: (auction) => {
       qc.invalidateQueries({ queryKey: ['admin', 'auctions'] });
       navigate(`/auctions/${auction.id}`);
@@ -214,7 +217,7 @@ export function NewAuctionPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="emd">EMD (₹)</Label>
+                <Label htmlFor="emd">Consolidated EMD (₹)</Label>
                 <Input
                   id="emd"
                   type="number"
@@ -222,9 +225,12 @@ export function NewAuctionPage() {
                   step={1}
                   value={emd}
                   onChange={(e) => setEmd(e.target.value)}
+                  placeholder="Leave blank for lot-level EMD only"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Earnest money per bidder. Deducted from wallet on participation.
+                  Optional. When set, a single deposit per bidder covers participation
+                  across all lots. Leave blank to run in lot-level mode where each lot
+                  has its own EMD (set per lot on the next page).
                 </p>
               </div>
             </CardContent>

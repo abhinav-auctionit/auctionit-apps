@@ -34,15 +34,6 @@ enum AuctionType {
   @@map("auction_type")
 }
 
-enum InvitationNotificationStatus {
-  pending
-  sent
-  failed
-  skipped
-
-  @@map("invitation_notification_status")
-}
-
 enum AttributeType {
   text
   number
@@ -120,11 +111,21 @@ enum OtpChannel {
 enum WalletTxnKind {
   admin_credit
   admin_debit_correction
-  emd_debit
-  emd_refund
+  emd_hold
+  emd_release
   emd_forfeit
 
   @@map("wallet_txn_kind")
+}
+
+enum LotOutcomeStatus {
+  pending_lift
+  lifted
+  forfeited
+  rejected_by_client
+  no_winner
+
+  @@map("lot_outcome_status")
 }
 
 enum OtherChargeType {
@@ -190,9 +191,11 @@ model User {
   uploadedFiles      StoredFile[]
   bidderProfile      BidderProfile?
   recordedWalletTxns WalletTransaction[] @relation("WalletTxnCreatedBy")
-  invitedInvitations AuctionInvitation[] @relation("InvitedBy")
   loggedEngagements  ClientEngagement[]  @relation("EngagementLoggedBy")
   clientAssignments  ClientInternalContact[]
+  wonLots            Lot[]               @relation("LotWinner")
+  attachedLotParticipations     LotParticipation[]     @relation("LotParticipationAttachedBy")
+  attachedAuctionParticipations AuctionParticipation[] @relation("AuctionParticipationAttachedBy")
 
   @@unique([mobileCountryCode, mobileNumber], map: "users_mobile_unique")
   @@map("users")
@@ -257,13 +260,14 @@ model BidderProfile {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  panCardFile         StoredFile?         @relation("BidderPanCard", fields: [panCardFileId], references: [id], onDelete: SetNull)
-  proofOfAddressFile  StoredFile?         @relation("BidderProofOfAddress", fields: [proofOfAddressFileId], references: [id], onDelete: SetNull)
-  cancelledChequeFile StoredFile?         @relation("BidderCancelledCheque", fields: [cancelledChequeFileId], references: [id], onDelete: SetNull)
-  otherFile           StoredFile?         @relation("BidderOther", fields: [otherFileId], references: [id], onDelete: SetNull)
-  wallet              BidderWallet?
-  invitations         AuctionInvitation[]
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  panCardFile           StoredFile?            @relation("BidderPanCard", fields: [panCardFileId], references: [id], onDelete: SetNull)
+  proofOfAddressFile    StoredFile?            @relation("BidderProofOfAddress", fields: [proofOfAddressFileId], references: [id], onDelete: SetNull)
+  cancelledChequeFile   StoredFile?            @relation("BidderCancelledCheque", fields: [cancelledChequeFileId], references: [id], onDelete: SetNull)
+  otherFile             StoredFile?            @relation("BidderOther", fields: [otherFileId], references: [id], onDelete: SetNull)
+  wallet                BidderWallet?
+  lotParticipations     LotParticipation[]
+  auctionParticipations AuctionParticipation[]
 
   @@index([status], map: "bidder_profiles_status_idx")
   @@map("bidder_profiles")
@@ -273,6 +277,7 @@ model BidderWallet {
   id              String   @id @default(uuid()) @db.Uuid
   bidderProfileId String   @unique @map("bidder_profile_id") @db.Uuid
   balance         Int      @default(0)
+  lockedBalance   Int      @default(0) @map("locked_balance")
   currency        String   @default("INR") @db.VarChar(3)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -483,24 +488,24 @@ model Session {
 }
 
 model Auction {
-  id          String        @id @default(uuid()) @db.Uuid
-  clientId    String        @map("client_id") @db.Uuid
-  locationId  String?       @map("location_id") @db.Uuid
-  code        String        @unique @db.VarChar(64)
-  name        String        @db.VarChar(255)
-  auctionType AuctionType   @map("auction_type")
-  status      AuctionStatus @default(draft)
-  emdAmount   Int           @default(0) @map("emd_amount")
-  description String?
-  createdById String?       @map("created_by_id") @db.Uuid
-  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                    String        @id @default(uuid()) @db.Uuid
+  clientId              String        @map("client_id") @db.Uuid
+  locationId            String?       @map("location_id") @db.Uuid
+  code                  String        @unique @db.VarChar(64)
+  name                  String        @db.VarChar(255)
+  auctionType           AuctionType   @map("auction_type")
+  status                AuctionStatus @default(draft)
+  consolidatedEmdAmount Int?          @map("consolidated_emd_amount")
+  description           String?
+  createdById           String?       @map("created_by_id") @db.Uuid
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  client      Client              @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  location    ClientLocation?     @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  createdBy   User?               @relation("AuctionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  lots        Lot[]
-  invitations AuctionInvitation[]
+  client       Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  location     ClientLocation?        @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  createdBy    User?                  @relation("AuctionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  lots         Lot[]
+  participants AuctionParticipation[]
 
   @@index([clientId], map: "auctions_client_idx")
   @@index([status], map: "auctions_status_idx")
@@ -509,25 +514,34 @@ model Auction {
 }
 
 model Lot {
-  id                 String   @id @default(uuid()) @db.Uuid
-  auctionId          String   @map("auction_id") @db.Uuid
-  lotNo              Int      @map("lot_no")
-  itemId             String?  @map("item_id") @db.Uuid
-  itemName           String   @map("item_name") @db.VarChar(255)
-  description        String?
-  qty                Decimal  @db.Decimal(14, 4)
-  uom                Uom
-  auctionDate        DateTime @map("auction_date") @db.Date
-  startTime          DateTime @map("start_time") @db.Timestamptz(6)
-  endTime            DateTime @map("end_time") @db.Timestamptz(6)
-  startingPriceCents Int      @map("starting_price_cents")
-  bidIncrementCents  Int      @default(100) @map("bid_increment_cents")
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                    String            @id @default(uuid()) @db.Uuid
+  auctionId             String            @map("auction_id") @db.Uuid
+  lotNo                 Int               @map("lot_no")
+  itemId                String?           @map("item_id") @db.Uuid
+  itemName              String            @map("item_name") @db.VarChar(255)
+  description           String?
+  qty                   Decimal           @db.Decimal(14, 4)
+  uom                   Uom
+  auctionDate           DateTime          @map("auction_date") @db.Date
+  startTime             DateTime          @map("start_time") @db.Timestamptz(6)
+  endTime               DateTime          @map("end_time") @db.Timestamptz(6)
+  startingPriceCents    Int               @map("starting_price_cents")
+  bidIncrementCents     Int               @default(100) @map("bid_increment_cents")
+  emdAmount             Int               @map("emd_amount")
+  winnerId              String?           @map("winner_id") @db.Uuid
+  winningBidAmountCents Int?              @map("winning_bid_amount_cents")
+  outcomeStatus         LotOutcomeStatus? @map("outcome_status")
+  liftedAt              DateTime?         @map("lifted_at") @db.Timestamptz(6)
+  forfeitedAt           DateTime?         @map("forfeited_at") @db.Timestamptz(6)
+  rejectedAt            DateTime?         @map("rejected_at") @db.Timestamptz(6)
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  auction Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
-  item    Item?   @relation(fields: [itemId], references: [id], onDelete: SetNull)
-  bids    Bid[]
+  auction      Auction            @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  item         Item?              @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  winner       User?              @relation("LotWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+  bids         Bid[]
+  participants LotParticipation[]
 
   @@unique([auctionId, lotNo], map: "lots_auction_lot_no_unique")
   @@index([auctionId], map: "lots_auction_idx")
@@ -535,25 +549,52 @@ model Lot {
   @@map("lots")
 }
 
-model AuctionInvitation {
-  id                 String                       @id @default(uuid()) @db.Uuid
-  auctionId          String                       @map("auction_id") @db.Uuid
-  bidderProfileId    String                       @map("bidder_profile_id") @db.Uuid
-  invitedById        String?                      @map("invited_by_id") @db.Uuid
-  invitedAt          DateTime                     @default(now()) @map("invited_at") @db.Timestamptz(6)
-  notificationStatus InvitationNotificationStatus @default(pending) @map("notification_status")
-  notificationSentAt DateTime?                    @map("notification_sent_at") @db.Timestamptz(6)
-  notificationError  String?                      @map("notification_error") @db.Text
-  joinedAt           DateTime?                    @map("joined_at") @db.Timestamptz(6)
+model LotParticipation {
+  id              String    @id @default(uuid()) @db.Uuid
+  lotId           String    @map("lot_id") @db.Uuid
+  bidderProfileId String    @map("bidder_profile_id") @db.Uuid
+  emdHeldAmount   Int       @map("emd_held_amount")
+  attachedById    String?   @map("attached_by_id") @db.Uuid
+  attachedAt      DateTime  @default(now()) @map("attached_at") @db.Timestamptz(6)
+  releasedAt      DateTime? @map("released_at") @db.Timestamptz(6)
+  holdTxnId       String?   @map("hold_txn_id") @db.Uuid
+  releaseTxnId    String?   @map("release_txn_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  lot           Lot           @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  bidderProfile BidderProfile @relation(fields: [bidderProfileId], references: [id], onDelete: Cascade)
+  attachedBy    User?         @relation("LotParticipationAttachedBy", fields: [attachedById], references: [id], onDelete: SetNull)
+
+  @@unique([lotId, bidderProfileId], map: "lot_participations_lot_bidder_unique")
+  @@index([bidderProfileId], map: "lot_participations_bidder_idx")
+  @@map("lot_participations")
+}
+
+model AuctionParticipation {
+  id                        String    @id @default(uuid()) @db.Uuid
+  auctionId                 String    @map("auction_id") @db.Uuid
+  bidderProfileId           String    @map("bidder_profile_id") @db.Uuid
+  consolidatedEmdHeldAmount Int       @map("consolidated_emd_held_amount")
+  attachedById              String?   @map("attached_by_id") @db.Uuid
+  attachedAt                DateTime  @default(now()) @map("attached_at") @db.Timestamptz(6)
+  settledAt                 DateTime? @map("settled_at") @db.Timestamptz(6)
+  settlementRefundAmount    Int?      @map("settlement_refund_amount")
+  settlementForfeitAmount   Int?      @map("settlement_forfeit_amount")
+  settlementShortfallAmount Int       @default(0) @map("settlement_shortfall_amount")
+  holdTxnId                 String?   @map("hold_txn_id") @db.Uuid
+  settleRefundTxnId         String?   @map("settle_refund_txn_id") @db.Uuid
+  settleForfeitTxnId        String?   @map("settle_forfeit_txn_id") @db.Uuid
+  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   auction       Auction       @relation(fields: [auctionId], references: [id], onDelete: Cascade)
   bidderProfile BidderProfile @relation(fields: [bidderProfileId], references: [id], onDelete: Cascade)
-  invitedBy     User?         @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+  attachedBy    User?         @relation("AuctionParticipationAttachedBy", fields: [attachedById], references: [id], onDelete: SetNull)
 
-  @@unique([auctionId, bidderProfileId], map: "invitations_auction_bidder_unique")
-  @@index([auctionId], map: "invitations_auction_idx")
-  @@index([bidderProfileId], map: "invitations_bidder_idx")
-  @@map("auction_invitations")
+  @@unique([auctionId, bidderProfileId], map: "auction_participations_auction_bidder_unique")
+  @@index([bidderProfileId], map: "auction_participations_bidder_idx")
+  @@map("auction_participations")
 }
 
 model Bid {

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ApiError, type BidderInvitation } from '@auction/api-client';
+import { ApiError, type BidderAuctionSummary } from '@auction/api-client';
 import { useApiClient } from '@auction/auth';
 import {
   Badge,
@@ -26,18 +26,10 @@ const TYPE_LABEL: Record<string, string> = {
 
 type Bucket = 'live' | 'upcoming' | 'past';
 
-function bucketFor(i: BidderInvitation): Bucket {
-  const s = i.auction.status;
-  if (s === 'live') return 'live';
-  if (s === 'scheduled' || s === 'draft') return 'upcoming';
-  return 'past'; // ended | cancelled
-}
-
-function earliestStart(i: BidderInvitation): string | null {
-  return i.auction.lots.reduce<string | null>(
-    (min, l) => (!min || l.startTime < min ? l.startTime : min),
-    null,
-  );
+function bucketFor(a: BidderAuctionSummary): Bucket {
+  if (a.status === 'live') return 'live';
+  if (a.status === 'scheduled' || a.status === 'draft') return 'upcoming';
+  return 'past';
 }
 
 function formatWhen(iso: string | null) {
@@ -54,19 +46,17 @@ function formatWhen(iso: string | null) {
 
 export function AuctionsPage() {
   const api = useApiClient();
-  const invitations = useQuery({
-    queryKey: ['bidder', 'me', 'invitations'],
-    queryFn: () => api.bidder.listMyInvitations(),
+  const auctions = useQuery({
+    queryKey: ['bidder', 'me', 'auctions'],
+    queryFn: () => api.bidder.listMyAuctions(),
   });
 
-  const buckets: Record<Bucket, BidderInvitation[]> = {
+  const buckets: Record<Bucket, BidderAuctionSummary[]> = {
     live: [],
     upcoming: [],
     past: [],
   };
-  for (const i of invitations.data ?? []) {
-    buckets[bucketFor(i)].push(i);
-  }
+  for (const a of auctions.data ?? []) buckets[bucketFor(a)].push(a);
 
   return (
     <AppShell>
@@ -74,33 +64,31 @@ export function AuctionsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Auctions</h1>
           <p className="text-sm text-muted-foreground">
-            Auctions you've been invited to. Join an auction with your wallet EMD to bid.
+            Auctions you've been attached to by an admin.
           </p>
         </div>
 
-        {invitations.isLoading && (
+        {auctions.isLoading && (
           <p className="text-sm text-muted-foreground">Loading…</p>
         )}
-        {invitations.error && (
+        {auctions.error && (
           <p className="text-sm text-destructive">
-            {invitations.error instanceof ApiError
-              ? invitations.error.message
-              : 'Failed to load invitations'}
+            {auctions.error instanceof ApiError
+              ? auctions.error.message
+              : 'Failed to load auctions'}
           </p>
         )}
 
-        {invitations.data && invitations.data.length === 0 && (
+        {auctions.data && auctions.data.length === 0 && (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              You haven't been invited to any auctions yet. When clients invite you, they'll
-              appear here.
+              You haven't been attached to any auctions yet. When an admin attaches you to
+              a lot (or to an auction in consolidated mode), it'll appear here.
             </CardContent>
           </Card>
         )}
 
-        {buckets.live.length > 0 && (
-          <Section title="Live now" items={buckets.live} />
-        )}
+        {buckets.live.length > 0 && <Section title="Live now" items={buckets.live} />}
         {buckets.upcoming.length > 0 && (
           <Section title="Upcoming" items={buckets.upcoming} />
         )}
@@ -116,7 +104,7 @@ function Section({
   muted,
 }: {
   title: string;
-  items: BidderInvitation[];
+  items: BidderAuctionSummary[];
   muted?: boolean;
 }) {
   return (
@@ -127,48 +115,49 @@ function Section({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        {items.map((i) => (
-          <InvitationRow key={i.id} invitation={i} />
+        {items.map((a) => (
+          <AuctionRow key={a.id} auction={a} />
         ))}
       </CardContent>
     </Card>
   );
 }
 
-function InvitationRow({ invitation }: { invitation: BidderInvitation }) {
-  const a = invitation.auction;
-  const start = earliestStart(invitation);
-  const joined = invitation.joinedAt != null;
+function AuctionRow({ auction }: { auction: BidderAuctionSummary }) {
   return (
     <Link
-      to={`/auctions/${a.id}`}
+      to={`/auctions/${auction.id}`}
       className="flex items-start justify-between gap-3 rounded-md border p-4 transition-colors hover:bg-secondary"
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs text-muted-foreground">{a.code}</span>
+          <span className="font-mono text-xs text-muted-foreground">{auction.code}</span>
           <span className="text-xs text-muted-foreground">·</span>
           <span className="text-xs text-muted-foreground">
-            {TYPE_LABEL[a.auctionType] ?? a.auctionType}
+            {TYPE_LABEL[auction.auctionType] ?? auction.auctionType}
           </span>
         </div>
-        <div className="mt-1 font-medium">{a.name}</div>
+        <div className="mt-1 font-medium">{auction.name}</div>
         <div className="text-xs text-muted-foreground">
-          {a.client.companyName} · {a.lots.length} lot{a.lots.length === 1 ? '' : 's'}
+          {auction.client.companyName} · {auction.lotCount}{' '}
+          {auction.lotCount === 1 ? 'lot' : 'lots'}
         </div>
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span>Starts {formatWhen(start)}</span>
-          {a.emdAmount > 0 && <span>EMD {inr.format(a.emdAmount)}</span>}
+          <span>Starts {formatWhen(auction.earliestStartTime)}</span>
+          {auction.totalEmdHeld > 0 && (
+            <span>EMD held: {inr.format(auction.totalEmdHeld)}</span>
+          )}
         </div>
       </div>
       <div className="flex flex-col items-end gap-2">
-        {joined ? (
-          <Badge variant="default">Joined</Badge>
-        ) : a.status === 'live' || a.status === 'scheduled' ? (
-          <Badge variant="secondary">Invited</Badge>
+        {auction.mode === 'consolidated' ? (
+          <Badge variant="default">Consolidated</Badge>
         ) : (
-          <Badge variant="outline">{a.status}</Badge>
+          <Badge variant="secondary">Lot-level</Badge>
         )}
+        <Badge variant="outline" className="text-[10px]">
+          {auction.status}
+        </Badge>
         <span className="text-xs text-muted-foreground">View →</span>
       </div>
     </Link>

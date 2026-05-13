@@ -30,20 +30,11 @@ export function DashboardPage() {
     retry: false,
   });
 
-  const invitations = useQuery({
-    queryKey: ['bidder', 'me', 'invitations'],
-    queryFn: () => api.bidder.listMyInvitations(),
-    enabled: !!user && user.role === 'bidder',
-    retry: false,
-  });
-
   if (!user) return null;
 
-  const open = (invitations.data ?? []).filter(
-    (i) => i.auction.status === 'live' || i.auction.status === 'scheduled',
-  );
-  const liveCount = open.filter((i) => i.auction.status === 'live').length;
-  const upcomingCount = open.length - liveCount;
+  const balance = wallet.data?.balance ?? 0;
+  const locked = wallet.data?.lockedBalance ?? 0;
+  const available = balance - locked;
 
   return (
     <AppShell>
@@ -59,7 +50,7 @@ export function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Wallet balance</CardTitle>
-              <CardDescription>Used as EMD when you join auctions.</CardDescription>
+              <CardDescription>Held as EMD against any auctions you're attached to.</CardDescription>
             </CardHeader>
             <CardContent>
               {wallet.isLoading && (
@@ -75,10 +66,10 @@ export function DashboardPage() {
               {wallet.data && (
                 <>
                   <p className="text-3xl font-semibold tracking-tight">
-                    {formatRs(wallet.data.balance)}
+                    {formatRs(available)}
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    To top up, contact the admin team — payments are processed offline.
+                    Available · {formatRs(locked)} held as EMD · {formatRs(balance)} total
                   </p>
                 </>
               )}
@@ -90,26 +81,14 @@ export function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Auction invitations</CardTitle>
-              <CardDescription>Auctions you've been invited to bid in.</CardDescription>
+              <CardTitle className="text-base">Your auctions</CardTitle>
+              <CardDescription>Auctions you've been attached to.</CardDescription>
             </CardHeader>
             <CardContent>
-              {invitations.isLoading && (
-                <p className="text-sm text-muted-foreground">Loading…</p>
-              )}
-              {invitations.data && (
-                <>
-                  <p className="tabular-nums text-3xl font-semibold tracking-tight">
-                    {open.length}
-                  </p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {liveCount > 0 && `${liveCount} live · `}
-                    {upcomingCount} upcoming
-                    {invitations.data.length > open.length &&
-                      ` · ${invitations.data.length - open.length} past`}
-                  </p>
-                </>
-              )}
+              <p className="text-sm text-muted-foreground">
+                The participation-driven listing is being rebuilt. Once an admin attaches you
+                to a lot or auction, it will appear here.
+              </p>
               <Button asChild variant="outline" size="sm" className="mt-4">
                 <Link to="/auctions">View auctions</Link>
               </Button>

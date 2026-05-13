@@ -24,6 +24,13 @@ export interface MutateResult {
   transaction: WalletTransaction;
 }
 
+/**
+ * A Prisma transaction client OR the base PrismaService. Methods that take this
+ * compose into outer transactions (so participations + wallet move atomically)
+ * but also work as standalone callers.
+ */
+type TxClient = Prisma.TransactionClient;
+
 @Injectable()
 export class WalletService {
   constructor(private readonly prisma: PrismaService) {}
@@ -37,8 +44,8 @@ export class WalletService {
   }
 
   /**
-   * Admin wallet overview: every approved bidder with their balance (or 0
-   * if no wallet row exists yet). One query — no N+1.
+   * Admin wallet overview: every approved bidder with their balance + lockedBalance
+   * (or zeros if no wallet row exists yet). One query — no N+1.
    */
   async listAllWallets() {
     const profiles = await this.prisma.bidderProfile.findMany({
@@ -50,7 +57,7 @@ export class WalletService {
         contactCountryCode: true,
         contactNumber: true,
         user: { select: { id: true, name: true, email: true } },
-        wallet: { select: { balance: true, updatedAt: true } },
+        wallet: { select: { balance: true, lockedBalance: true, updatedAt: true } },
       },
       orderBy: { fullName: 'asc' },
     });
@@ -62,6 +69,7 @@ export class WalletService {
       contactNumber: p.contactNumber,
       user: p.user,
       balance: p.wallet?.balance ?? 0,
+      lockedBalance: p.wallet?.lockedBalance ?? 0,
       walletUpdatedAt: p.wallet?.updatedAt ?? null,
     }));
   }
@@ -99,7 +107,7 @@ export class WalletService {
     bidderProfileId: string,
     input: Omit<MutateInput, 'kind'> & { kind?: WalletTxnKind },
   ): Promise<MutateResult> {
-    return this.applyDelta(bidderProfileId, +input.amount, {
+    return this.applyBalanceDelta(bidderProfileId, +input.amount, {
       ...input,
       kind: input.kind ?? 'admin_credit',
     });
@@ -110,59 +118,157 @@ export class WalletService {
     bidderProfileId: string,
     input: Omit<MutateInput, 'kind'>,
   ): Promise<MutateResult> {
-    return this.applyDelta(bidderProfileId, -input.amount, {
+    return this.applyBalanceDelta(bidderProfileId, -input.amount, {
       ...input,
       kind: 'admin_debit_correction',
     });
   }
 
-  /** Hook for the future "join auction" flow. Atomic check + debit. */
-  async debitForEmd(
+  /**
+   * Place a hold on EMD. Increments `lockedBalance` (which must not exceed
+   * `balance`), writes an `emd_hold` ledger row. `balance` is unchanged —
+   * total wallet money stays the same; just the available portion shrinks.
+   *
+   * Composable: pass `tx` to run inside an outer transaction.
+   */
+  async holdEmd(
     bidderProfileId: string,
-    auctionId: string,
-    amount: number,
+    input: {
+      amount: number;
+      referenceType: string;
+      referenceId: string;
+      note?: string | null;
+      createdById?: string | null;
+    },
+    tx?: TxClient,
   ): Promise<MutateResult> {
-    return this.applyDelta(bidderProfileId, -amount, {
-      amount,
-      kind: 'emd_debit',
-      referenceType: 'auction',
-      referenceId: auctionId,
-      note: 'EMD for auction participation',
-    });
-  }
-
-  /** Hook for auction-end refund (loser, withdrawn, cancelled). */
-  async refundEmd(
-    bidderProfileId: string,
-    auctionId: string,
-    amount: number,
-  ): Promise<MutateResult> {
-    return this.applyDelta(bidderProfileId, +amount, {
-      amount,
-      kind: 'emd_refund',
-      referenceType: 'auction',
-      referenceId: auctionId,
-      note: 'EMD refund',
-    });
+    return this.applyEmdMutation(
+      bidderProfileId,
+      {
+        amount: input.amount,
+        kind: 'emd_hold',
+        referenceType: input.referenceType,
+        referenceId: input.referenceId,
+        note: input.note ?? null,
+        createdById: input.createdById ?? null,
+      },
+      (wallet) => {
+        const newAvailable = wallet.balance - (wallet.lockedBalance + input.amount);
+        if (newAvailable < 0) {
+          const available = wallet.balance - wallet.lockedBalance;
+          throw new ConflictException(
+            `insufficient available balance: have ${available}, need ${input.amount}`,
+          );
+        }
+        return {
+          balance: wallet.balance,
+          lockedBalance: wallet.lockedBalance + input.amount,
+        };
+      },
+      tx,
+    );
   }
 
   /**
-   * Single point that mutates wallet balance and writes a ledger row.
-   * `signedDelta` is the actual change (positive credit, negative debit);
-   * `input.amount` is always positive (the magnitude — sign comes from kind).
+   * Release a previously-held EMD. Decrements `lockedBalance`; `balance`
+   * unchanged. Money returns to spendable.
    */
-  private async applyDelta(
+  async releaseEmd(
+    bidderProfileId: string,
+    input: {
+      amount: number;
+      referenceType: string;
+      referenceId: string;
+      note?: string | null;
+      createdById?: string | null;
+    },
+    tx?: TxClient,
+  ): Promise<MutateResult> {
+    return this.applyEmdMutation(
+      bidderProfileId,
+      {
+        amount: input.amount,
+        kind: 'emd_release',
+        referenceType: input.referenceType,
+        referenceId: input.referenceId,
+        note: input.note ?? null,
+        createdById: input.createdById ?? null,
+      },
+      (wallet) => {
+        if (wallet.lockedBalance < input.amount) {
+          throw new ConflictException(
+            `cannot release more than locked: locked=${wallet.lockedBalance}, requested=${input.amount}`,
+          );
+        }
+        return {
+          balance: wallet.balance,
+          lockedBalance: wallet.lockedBalance - input.amount,
+        };
+      },
+      tx,
+    );
+  }
+
+  /**
+   * Forfeit a held EMD. Decrements both `lockedBalance` and `balance`. The
+   * money leaves the wallet permanently.
+   */
+  async forfeitEmd(
+    bidderProfileId: string,
+    input: {
+      amount: number;
+      referenceType: string;
+      referenceId: string;
+      note?: string | null;
+      createdById?: string | null;
+    },
+    tx?: TxClient,
+  ): Promise<MutateResult> {
+    return this.applyEmdMutation(
+      bidderProfileId,
+      {
+        amount: input.amount,
+        kind: 'emd_forfeit',
+        referenceType: input.referenceType,
+        referenceId: input.referenceId,
+        note: input.note ?? null,
+        createdById: input.createdById ?? null,
+      },
+      (wallet) => {
+        if (wallet.lockedBalance < input.amount) {
+          throw new ConflictException(
+            `cannot forfeit more than locked: locked=${wallet.lockedBalance}, requested=${input.amount}`,
+          );
+        }
+        return {
+          balance: wallet.balance - input.amount,
+          lockedBalance: wallet.lockedBalance - input.amount,
+        };
+      },
+      tx,
+    );
+  }
+
+  private validateAmount(amount: number) {
+    if (!Number.isInteger(amount) || amount <= 0) {
+      throw new BadRequestException('amount must be a positive whole number of rupees');
+    }
+    if (amount > MAX_AMOUNT) {
+      throw new BadRequestException(`amount exceeds limit of ${MAX_AMOUNT}`);
+    }
+  }
+
+  /**
+   * Balance-only mutations (admin credit/debit correction): change `balance`,
+   * leave `lockedBalance` alone. Single Serializable transaction.
+   */
+  private async applyBalanceDelta(
     bidderProfileId: string,
     signedDelta: number,
     input: MutateInput,
   ): Promise<MutateResult> {
     const magnitude = Math.abs(signedDelta);
-    if (!Number.isInteger(magnitude) || magnitude <= 0) {
-      throw new BadRequestException('amount must be a positive whole number of rupees');
-    }
-    if (magnitude > MAX_AMOUNT) {
-      throw new BadRequestException(`amount exceeds limit of ${MAX_AMOUNT}`);
-    }
+    this.validateAmount(magnitude);
 
     return this.prisma.$transaction<MutateResult>(
       async (tx) => {
@@ -175,6 +281,11 @@ export class WalletService {
         if (newBalance < 0) {
           throw new ConflictException(
             `insufficient balance: have ${wallet.balance}, need ${magnitude}`,
+          );
+        }
+        if (newBalance < wallet.lockedBalance) {
+          throw new ConflictException(
+            `cannot debit below locked balance: locked=${wallet.lockedBalance}`,
           );
         }
         const updated = await tx.bidderWallet.update({
@@ -197,5 +308,51 @@ export class WalletService {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+  }
+
+  /**
+   * Generic EMD mutation: caller provides a function that computes new
+   * { balance, lockedBalance } from the current wallet (and validates).
+   * Writes a ledger row recording the magnitude as `amount` and the
+   * new `balance` as `balanceAfter`. Runs in caller's tx if provided.
+   */
+  private async applyEmdMutation(
+    bidderProfileId: string,
+    input: MutateInput,
+    compute: (w: BidderWallet) => { balance: number; lockedBalance: number },
+    outerTx?: TxClient,
+  ): Promise<MutateResult> {
+    this.validateAmount(input.amount);
+
+    const exec = async (tx: TxClient): Promise<MutateResult> => {
+      const wallet = await tx.bidderWallet.upsert({
+        where: { bidderProfileId },
+        update: {},
+        create: { bidderProfileId },
+      });
+      const next = compute(wallet);
+      const updated = await tx.bidderWallet.update({
+        where: { id: wallet.id },
+        data: { balance: next.balance, lockedBalance: next.lockedBalance },
+      });
+      const transaction = await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          kind: input.kind,
+          amount: input.amount,
+          balanceAfter: next.balance,
+          referenceType: input.referenceType ?? null,
+          referenceId: input.referenceId ?? null,
+          note: input.note?.trim() ? input.note.trim() : null,
+          createdById: input.createdById ?? null,
+        },
+      });
+      return { wallet: updated, transaction };
+    };
+
+    if (outerTx) return exec(outerTx);
+    return this.prisma.$transaction<MutateResult>(exec, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
   }
 }

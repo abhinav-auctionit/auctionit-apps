@@ -32,7 +32,7 @@ import {
   Textarea,
 } from '@auction/ui';
 import { AppShell } from '../components/AppShell';
-import { AuctionInvitationsSection } from '../components/AuctionInvitationsSection';
+import { AuctionParticipantsSection } from '../components/AuctionParticipantsSection';
 
 const UOMS = uomSchema.options;
 
@@ -76,8 +76,11 @@ export function AuctionDetailPage() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'auction', id] });
 
+  // PATCH only handles draft↔scheduled↔live now; ended and cancelled have
+  // dedicated endpoints (added in the EMD lifecycle plan) so EMDs are processed.
   const setStatus = useMutation({
-    mutationFn: (status: AuctionStatus) => api.adminAuctions.update(id, { status }),
+    mutationFn: (status: 'draft' | 'scheduled' | 'live') =>
+      api.adminAuctions.update(id, { status }),
     onSuccess: invalidate,
   });
   const deleteLot = useMutation({
@@ -126,16 +129,19 @@ export function AuctionDetailPage() {
               {a.client.companyName}
               {a.location ? ` · ${a.location.name}` : ''} ·{' '}
               {TYPE_LABEL[a.auctionType] ?? a.auctionType}
-              {a.emdAmount > 0 ? ` · EMD ${inr.format(a.emdAmount)}` : ''}
+              {a.consolidatedEmdAmount != null
+                ? ` · Consolidated EMD ${inr.format(a.consolidatedEmdAmount)}`
+                : ''}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={badge.variant}>{badge.label}</Badge>
             <StatusActions
+              auctionId={a.id}
               status={a.status}
               hasLots={a.lots.length > 0}
               busy={setStatus.isPending}
-              onChange={(s) => setStatus.mutate(s)}
+              onPublish={() => setStatus.mutate('scheduled')}
             />
           </div>
         </div>
@@ -175,6 +181,10 @@ export function AuctionDetailPage() {
                       <th className="px-3 py-2 text-left">Unit</th>
                       <th className="px-3 py-2 text-right">Start bid</th>
                       <th className="px-3 py-2 text-right">Incr.</th>
+                      <th className="px-3 py-2 text-right">EMD</th>
+                      {a.status === 'ended' && (
+                        <th className="px-3 py-2 text-left">Outcome</th>
+                      )}
                       <th className="px-3 py-2 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -221,23 +231,35 @@ export function AuctionDetailPage() {
                         <td className="px-3 py-2 text-right tabular-nums">
                           {formatRsFromCents(l.bidIncrementCents)}
                         </td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {inr.format(l.emdAmount)}
+                        </td>
+                        {a.status === 'ended' && (
+                          <td className="px-3 py-2">
+                            <LotOutcomeCell auctionId={a.id} lot={l} />
+                          </td>
+                        )}
                         <td className="px-3 py-2 text-right">
                           <div className="inline-flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setLotDialog({ mode: 'edit', lot: l })}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive hover:bg-destructive/10"
-                              onClick={() => setDeleteLotId(l.id)}
-                            >
-                              Delete
-                            </Button>
+                            {a.status !== 'ended' && a.status !== 'cancelled' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setLotDialog({ mode: 'edit', lot: l })}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive hover:bg-destructive/10"
+                                  onClick={() => setDeleteLotId(l.id)}
+                                >
+                                  Delete
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -249,10 +271,7 @@ export function AuctionDetailPage() {
           </CardContent>
         </Card>
 
-        <AuctionInvitationsSection
-          auctionId={id}
-          canInvite={a.status !== 'ended' && a.status !== 'cancelled'}
-        />
+        <AuctionParticipantsSection auction={a} />
       </div>
 
       {lotDialog && (
@@ -307,23 +326,43 @@ export function AuctionDetailPage() {
 }
 
 function StatusActions({
+  auctionId,
   status,
   hasLots,
   busy,
-  onChange,
+  onPublish,
 }: {
+  auctionId: string;
   status: AuctionStatus;
   hasLots: boolean;
   busy: boolean;
-  onChange: (s: AuctionStatus) => void;
+  onPublish: () => void;
 }) {
+  const api = useApiClient();
+  const qc = useQueryClient();
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['admin', 'auction', auctionId] });
+    qc.invalidateQueries({ queryKey: ['admin', 'auction', auctionId, 'participants'] });
+  };
+  const endAuction = useMutation({
+    mutationFn: () => api.adminAuctions.end(auctionId),
+    onSuccess: invalidate,
+  });
+  const cancelAuction = useMutation({
+    mutationFn: () => api.adminAuctions.cancel(auctionId, { note: null }),
+    onSuccess: invalidate,
+  });
+
+  const [confirmEnd, setConfirmEnd] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+
   if (status === 'draft') {
     return (
       <>
         <Button
           size="sm"
           disabled={busy || !hasLots}
-          onClick={() => onChange('scheduled')}
+          onClick={onPublish}
           title={hasLots ? '' : 'Add at least one lot first'}
         >
           Publish
@@ -332,28 +371,215 @@ function StatusActions({
           size="sm"
           variant="outline"
           className="text-destructive hover:bg-destructive/10"
-          disabled={busy}
-          onClick={() => onChange('cancelled')}
+          disabled={busy || cancelAuction.isPending}
+          onClick={() => setConfirmCancel(true)}
         >
           Cancel
         </Button>
+        <CancelDialog
+          open={confirmCancel}
+          onClose={() => setConfirmCancel(false)}
+          onConfirm={() => cancelAuction.mutate()}
+          pending={cancelAuction.isPending}
+          error={cancelAuction.error}
+        />
       </>
     );
   }
   if (status === 'scheduled' || status === 'live') {
     return (
-      <Button
-        size="sm"
-        variant="outline"
-        className="text-destructive hover:bg-destructive/10"
-        disabled={busy}
-        onClick={() => onChange('cancelled')}
-      >
-        Cancel auction
-      </Button>
+      <>
+        <Button
+          size="sm"
+          disabled={endAuction.isPending}
+          onClick={() => setConfirmEnd(true)}
+        >
+          {endAuction.isPending ? 'Ending…' : 'End auction'}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-destructive hover:bg-destructive/10"
+          disabled={cancelAuction.isPending}
+          onClick={() => setConfirmCancel(true)}
+        >
+          Cancel
+        </Button>
+        <EndDialog
+          open={confirmEnd}
+          onClose={() => setConfirmEnd(false)}
+          onConfirm={() => endAuction.mutate()}
+          pending={endAuction.isPending}
+          error={endAuction.error}
+        />
+        <CancelDialog
+          open={confirmCancel}
+          onClose={() => setConfirmCancel(false)}
+          onConfirm={() => cancelAuction.mutate()}
+          pending={cancelAuction.isPending}
+          error={cancelAuction.error}
+        />
+      </>
     );
   }
   return null;
+}
+
+function EndDialog({
+  open,
+  onClose,
+  onConfirm,
+  pending,
+  error,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  pending: boolean;
+  error: unknown;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>End auction?</DialogTitle>
+          <DialogDescription>
+            Computes the winner of each lot from top bids and releases EMDs to
+            non-winners. Lots with winners move to "pending lift". This action
+            cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        {error != null && (
+          <p className="text-sm text-destructive">
+            {error instanceof ApiError ? error.message : 'Failed to end auction'}
+          </p>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={pending}>
+            Cancel
+          </Button>
+          <Button onClick={onConfirm} disabled={pending}>
+            {pending ? 'Ending…' : 'End auction'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CancelDialog({
+  open,
+  onClose,
+  onConfirm,
+  pending,
+  error,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  pending: boolean;
+  error: unknown;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Cancel auction?</DialogTitle>
+          <DialogDescription>
+            Releases every held EMD (lot-level and consolidated) back to bidders
+            and marks the auction cancelled. This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        {error != null && (
+          <p className="text-sm text-destructive">
+            {error instanceof ApiError ? error.message : 'Failed to cancel auction'}
+          </p>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={pending}>
+            Back
+          </Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={pending}>
+            {pending ? 'Cancelling…' : 'Cancel auction'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const OUTCOME_LABEL: Record<string, { label: string; tone: string }> = {
+  pending_lift: { label: 'Pending lift', tone: 'bg-amber-100 text-amber-800' },
+  lifted: { label: 'Lifted', tone: 'bg-emerald-100 text-emerald-700' },
+  forfeited: { label: 'Forfeited', tone: 'bg-rose-100 text-rose-700' },
+  rejected_by_client: { label: 'Rejected', tone: 'bg-slate-200 text-slate-800' },
+  no_winner: { label: 'No winner', tone: 'bg-muted text-muted-foreground' },
+};
+
+function LotOutcomeCell({ auctionId, lot }: { auctionId: string; lot: Lot }) {
+  const api = useApiClient();
+  const qc = useQueryClient();
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['admin', 'auction', auctionId] });
+    qc.invalidateQueries({ queryKey: ['admin', 'auction', auctionId, 'participants'] });
+  };
+  const lift = useMutation({
+    mutationFn: () => api.adminAuctions.markLotLifted(auctionId, lot.id, { note: null }),
+    onSuccess: invalidate,
+  });
+  const forfeit = useMutation({
+    mutationFn: () => api.adminAuctions.forfeitLot(auctionId, lot.id, { note: null }),
+    onSuccess: invalidate,
+  });
+  const reject = useMutation({
+    mutationFn: () =>
+      api.adminAuctions.rejectLotByClient(auctionId, lot.id, { note: null }),
+    onSuccess: invalidate,
+  });
+
+  const status = lot.outcomeStatus ?? 'pending_lift';
+  const meta = OUTCOME_LABEL[status] ?? { label: status, tone: 'bg-muted' };
+  const busy = lift.isPending || forfeit.isPending || reject.isPending;
+
+  return (
+    <div className="space-y-1">
+      <span
+        className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${meta.tone}`}
+      >
+        {meta.label}
+      </span>
+      {status === 'pending_lift' && (
+        <div className="flex flex-wrap gap-1 text-[10px]">
+          <button
+            type="button"
+            className="text-primary hover:underline disabled:opacity-50"
+            disabled={busy}
+            onClick={() => lift.mutate()}
+          >
+            Mark lifted
+          </button>
+          <span className="text-muted-foreground">·</span>
+          <button
+            type="button"
+            className="text-destructive hover:underline disabled:opacity-50"
+            disabled={busy}
+            onClick={() => forfeit.mutate()}
+          >
+            Forfeit
+          </button>
+          <span className="text-muted-foreground">·</span>
+          <button
+            type="button"
+            className="text-muted-foreground hover:underline disabled:opacity-50"
+            disabled={busy}
+            onClick={() => reject.mutate()}
+          >
+            Reject
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // -- Lot dialog ----------------------------------------------------------
@@ -371,6 +597,7 @@ type LotForm = {
   endTime: string;
   startingPriceRupees: string;
   bidIncrementRupees: string;
+  emdRupees: string;
 };
 
 const initialLotForm = (): LotForm => {
@@ -388,6 +615,7 @@ const initialLotForm = (): LotForm => {
     endTime: `${today}T11:00`,
     startingPriceRupees: '',
     bidIncrementRupees: '100',
+    emdRupees: '0',
   };
 };
 
@@ -404,6 +632,7 @@ const lotToForm = (l: Lot): LotForm => ({
   endTime: toLocalDateTimeInput(l.endTime),
   startingPriceRupees: String(Math.round(l.startingPriceCents / 100)),
   bidIncrementRupees: String(Math.round(l.bidIncrementCents / 100)),
+  emdRupees: String(l.emdAmount),
 });
 
 function toLocalDateTimeInput(iso: string): string {
@@ -477,6 +706,11 @@ function LotDialog({
       setError('Bid increment must be positive');
       return;
     }
+    const emdAmount = Math.round(Number(f.emdRupees));
+    if (!Number.isInteger(emdAmount) || emdAmount < 0) {
+      setError('EMD must be a non-negative whole rupee amount');
+      return;
+    }
     const startTime = new Date(f.startTime);
     const endTime = new Date(f.endTime);
     if (!(endTime > startTime)) {
@@ -495,6 +729,7 @@ function LotDialog({
       endTime,
       startingPriceCents: startCents,
       bidIncrementCents: incCents,
+      emdAmount,
     };
 
     if (mode === 'create') create.mutate(payload);
@@ -674,6 +909,26 @@ function LotDialog({
                 required
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="lotEmd">
+              Lot EMD (₹) <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="lotEmd"
+              type="number"
+              min={0}
+              step={1}
+              value={f.emdRupees}
+              onChange={(e) => set('emdRupees', e.target.value)}
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Held from the bidder's wallet when an admin attaches them to this lot.
+              Released if they don't win, kept until lifting if they do, forfeited if
+              they fail to lift.
+            </p>
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}

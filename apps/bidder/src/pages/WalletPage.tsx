@@ -26,8 +26,8 @@ const formatRs = (rupees: number) => inr.format(rupees);
 const KIND_LABEL: Record<WalletTransaction['kind'], { label: string; isCredit: boolean }> = {
   admin_credit: { label: 'Top-up', isCredit: true },
   admin_debit_correction: { label: 'Correction', isCredit: false },
-  emd_debit: { label: 'EMD', isCredit: false },
-  emd_refund: { label: 'EMD refund', isCredit: true },
+  emd_hold: { label: 'EMD hold', isCredit: false },
+  emd_release: { label: 'EMD release', isCredit: true },
   emd_forfeit: { label: 'EMD forfeit', isCredit: false },
 };
 
@@ -55,24 +55,54 @@ export function WalletPage() {
         <div>
           <h1 className="text-2xl font-semibold">My wallet</h1>
           <p className="text-sm text-muted-foreground">
-            Used as EMD when you join an auction. Top-ups are processed offline by the admin team.
+            Used as EMD when you're attached to a lot or auction. Top-ups are processed
+            offline by the admin team.
           </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Current balance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-semibold tracking-tight">
-              {wallet.data ? formatRs(wallet.data.balance) : '—'}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              EMD is deducted automatically when you join an auction and refunded when the
-              auction ends if you don't win.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="grid gap-3 md:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Available</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-semibold tracking-tight">
+                {wallet.data
+                  ? formatRs(wallet.data.balance - wallet.data.lockedBalance)
+                  : '—'}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Spendable for new attachments.
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Held as EMD</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-semibold tracking-tight">
+                {wallet.data ? formatRs(wallet.data.lockedBalance) : '—'}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Locked against your active participations.
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Total</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-semibold tracking-tight">
+                {wallet.data ? formatRs(wallet.data.balance) : '—'}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Available + Held. Forfeits reduce this; releases return Held to Available.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
         <Card>
           <CardHeader>

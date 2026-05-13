@@ -36,11 +36,15 @@ const inr = new Intl.NumberFormat('en-IN', {
 });
 const formatRs = (rupees: number) => inr.format(rupees);
 
+// EMD hold/release move money between balance and lockedBalance — neither is a
+// "credit" against the bidder's total wallet money, but for the ledger display
+// we tag hold as a debit-leaning event (locks money) and release as a credit-
+// leaning event (frees money). Forfeit actually removes money.
 const KIND_LABEL: Record<WalletTransaction['kind'], { label: string; isCredit: boolean }> = {
   admin_credit: { label: 'Admin credit', isCredit: true },
   admin_debit_correction: { label: 'Correction', isCredit: false },
-  emd_debit: { label: 'EMD debit', isCredit: false },
-  emd_refund: { label: 'EMD refund', isCredit: true },
+  emd_hold: { label: 'EMD hold', isCredit: false },
+  emd_release: { label: 'EMD release', isCredit: true },
   emd_forfeit: { label: 'EMD forfeit', isCredit: false },
 };
 

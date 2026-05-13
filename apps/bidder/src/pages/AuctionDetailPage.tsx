@@ -1,13 +1,11 @@
 import { Link, useParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ApiError } from '@auction/api-client';
+import { useQuery } from '@tanstack/react-query';
+import { ApiError, type BidderAuctionLot } from '@auction/api-client';
 import { useApiClient } from '@auction/auth';
 import {
   Badge,
-  Button,
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@auction/ui';
@@ -38,40 +36,33 @@ function formatWhen(iso: string) {
   });
 }
 
+const OUTCOME_LABEL: Record<string, { label: string; tone: string }> = {
+  pending_lift: { label: 'Pending lift', tone: 'bg-amber-100 text-amber-800' },
+  lifted: { label: 'Lifted', tone: 'bg-emerald-100 text-emerald-700' },
+  forfeited: { label: 'Forfeited', tone: 'bg-rose-100 text-rose-700' },
+  rejected_by_client: { label: 'Rejected by client', tone: 'bg-slate-200 text-slate-800' },
+  no_winner: { label: 'No winner', tone: 'bg-muted text-muted-foreground' },
+};
+
 export function AuctionDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const api = useApiClient();
-  const qc = useQueryClient();
 
-  const invitation = useQuery({
+  const detail = useQuery({
     queryKey: ['bidder', 'auction', id],
-    queryFn: () => api.bidder.getInvitedAuction(id),
+    queryFn: () => api.bidder.getMyAuction(id),
     enabled: !!id,
     retry: false,
   });
 
-  const wallet = useQuery({
-    queryKey: ['bidder', 'me', 'wallet'],
-    queryFn: () => api.bidder.getMyWallet(),
-  });
-
-  const join = useMutation({
-    mutationFn: () => api.bidder.joinAuction(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['bidder', 'auction', id] });
-      qc.invalidateQueries({ queryKey: ['bidder', 'me', 'wallet'] });
-      qc.invalidateQueries({ queryKey: ['bidder', 'me', 'invitations'] });
-    },
-  });
-
-  if (invitation.isLoading) {
+  if (detail.isLoading) {
     return (
       <AppShell>
         <p className="text-sm text-muted-foreground">Loading…</p>
       </AppShell>
     );
   }
-  if (invitation.error || !invitation.data) {
+  if (detail.error || !detail.data) {
     return (
       <AppShell>
         <div className="space-y-3">
@@ -79,8 +70,8 @@ export function AuctionDetailPage() {
             ← Back to auctions
           </Link>
           <p className="text-sm text-destructive">
-            {invitation.error instanceof ApiError
-              ? invitation.error.message
+            {detail.error instanceof ApiError
+              ? detail.error.message
               : 'Failed to load auction'}
           </p>
         </div>
@@ -88,13 +79,10 @@ export function AuctionDetailPage() {
     );
   }
 
-  const inv = invitation.data;
-  const a = inv.auction;
-  const isJoined = !!inv.joinedAt;
-  const canJoin =
-    !isJoined && (a.status === 'scheduled' || a.status === 'live');
-  const insufficientBalance =
-    wallet.data != null && wallet.data.balance < a.emdAmount;
+  const { auction, mode, consolidated, lots } = detail.data;
+  const totalHeld =
+    (consolidated?.heldAmount ?? 0) +
+    lots.reduce((s, l) => s + (l.releasedAt ? 0 : l.emdHeldAmount), 0);
 
   return (
     <AppShell>
@@ -105,51 +93,79 @@ export function AuctionDetailPage() {
 
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="font-mono text-xs text-muted-foreground">{a.code}</p>
-            <h1 className="mt-1 text-2xl font-semibold">{a.name}</h1>
+            <p className="font-mono text-xs text-muted-foreground">{auction.code}</p>
+            <h1 className="mt-1 text-2xl font-semibold">{auction.name}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {a.client.companyName} · {TYPE_LABEL[a.auctionType] ?? a.auctionType}
+              {auction.client.companyName}
+              {auction.location ? ` · ${auction.location.name}` : ''} ·{' '}
+              {TYPE_LABEL[auction.auctionType] ?? auction.auctionType}
             </p>
           </div>
-          {isJoined ? (
-            <Badge variant="default">Joined</Badge>
-          ) : (
-            <Badge variant="secondary">{a.status}</Badge>
-          )}
+          <div className="flex flex-col items-end gap-1">
+            {mode === 'consolidated' ? (
+              <Badge variant="default">Consolidated</Badge>
+            ) : (
+              <Badge variant="secondary">Lot-level</Badge>
+            )}
+            <Badge variant="outline">{auction.status}</Badge>
+          </div>
         </div>
 
-        {a.description && (
+        {auction.description && (
           <Card>
             <CardContent className="pt-6 text-sm leading-relaxed text-muted-foreground">
-              {a.description}
+              {auction.description}
             </CardContent>
           </Card>
         )}
 
-        <JoinPanel
-          isJoined={isJoined}
-          emdAmount={a.emdAmount}
-          walletBalance={wallet.data?.balance}
-          canJoin={canJoin}
-          insufficientBalance={insufficientBalance}
-          status={a.status}
-          busy={join.isPending}
-          error={join.error}
-          onJoin={() => join.mutate()}
-        />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">EMD overview</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            {mode === 'consolidated' && consolidated && (
+              <>
+                <p>
+                  <span className="text-muted-foreground">Consolidated held:</span>{' '}
+                  <span className="font-medium tabular-nums">
+                    {inr.format(consolidated.heldAmount)}
+                  </span>
+                </p>
+                {consolidated.settledAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Settled · refund {inr.format(consolidated.settlementRefundAmount ?? 0)} ·
+                    forfeit {inr.format(consolidated.settlementForfeitAmount ?? 0)}
+                    {consolidated.settlementShortfallAmount > 0 && (
+                      <>
+                        {' '}
+                        · shortfall {inr.format(consolidated.settlementShortfallAmount)}
+                      </>
+                    )}
+                  </p>
+                )}
+              </>
+            )}
+            {mode === 'lot' && (
+              <p>
+                <span className="text-muted-foreground">Currently held:</span>{' '}
+                <span className="font-medium tabular-nums">{inr.format(totalHeld)}</span>
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Lots ({a.lots.length})</CardTitle>
-            {!isJoined && (
-              <CardDescription>
-                Bidding opens after you join. Lot timing shown below.
-              </CardDescription>
-            )}
+            <CardTitle className="text-base">
+              Your lots ({lots.length})
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {a.lots.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No lots in this auction yet.</p>
+            {lots.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                You're attached to this auction but no lot rows are visible.
+              </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -160,31 +176,14 @@ export function AuctionDetailPage() {
                       <th className="px-3 py-2 text-left">Start</th>
                       <th className="px-3 py-2 text-left">End</th>
                       <th className="px-3 py-2 text-right">Qty</th>
-                      <th className="px-3 py-2 text-left">Unit</th>
                       <th className="px-3 py-2 text-right">Start bid</th>
-                      <th className="px-3 py-2 text-right">Incr.</th>
+                      <th className="px-3 py-2 text-right">EMD held</th>
+                      <th className="px-3 py-2 text-left">Outcome</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {a.lots.map((l) => (
-                      <tr key={l.id} className="border-b last:border-b-0">
-                        <td className="px-3 py-2 tabular-nums">{l.lotNo}</td>
-                        <td className="px-3 py-2 font-medium">{l.itemName}</td>
-                        <td className="px-3 py-2 text-xs text-muted-foreground">
-                          {formatWhen(l.startTime)}
-                        </td>
-                        <td className="px-3 py-2 text-xs text-muted-foreground">
-                          {formatWhen(l.endTime)}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums">{l.qty}</td>
-                        <td className="px-3 py-2">{l.uom}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">
-                          {formatRsFromCents(l.startingPriceCents)}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums">
-                          {formatRsFromCents(l.bidIncrementCents)}
-                        </td>
-                      </tr>
+                    {lots.map((l) => (
+                      <LotRow key={l.lotId} lot={l} />
                     ))}
                   </tbody>
                 </table>
@@ -197,103 +196,46 @@ export function AuctionDetailPage() {
   );
 }
 
-function JoinPanel({
-  isJoined,
-  emdAmount,
-  walletBalance,
-  canJoin,
-  insufficientBalance,
-  status,
-  busy,
-  error,
-  onJoin,
-}: {
-  isJoined: boolean;
-  emdAmount: number;
-  walletBalance: number | undefined;
-  canJoin: boolean;
-  insufficientBalance: boolean;
-  status: string;
-  busy: boolean;
-  error: unknown;
-  onJoin: () => void;
-}) {
-  if (isJoined) {
-    return (
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
-          <div>
-            <p className="text-sm font-medium">You've joined this auction.</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {emdAmount > 0
-                ? `${inr.format(emdAmount)} EMD is held from your wallet. It will be refunded if you don't win.`
-                : 'No EMD was required for this auction.'}
-            </p>
-          </div>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/wallet">View wallet</Link>
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (status === 'ended' || status === 'cancelled') {
-    return (
-      <Card>
-        <CardContent className="pt-6 text-sm text-muted-foreground">
-          This auction is {status}; participation is closed.
-        </CardContent>
-      </Card>
-    );
-  }
-
+function LotRow({ lot }: { lot: BidderAuctionLot }) {
+  const outcome = lot.outcomeStatus ? OUTCOME_LABEL[lot.outcomeStatus] : null;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Join this auction</CardTitle>
-        <CardDescription>
-          {emdAmount > 0
-            ? `An EMD of ${inr.format(emdAmount)} will be debited from your wallet when you join. It's refunded if you don't win.`
-            : 'No EMD is required for this auction. Joining lets you place bids when lots open.'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {walletBalance != null && (
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-            <dt className="text-muted-foreground">Wallet balance</dt>
-            <dd className="font-medium tabular-nums">{inr.format(walletBalance)}</dd>
-            <dt className="text-muted-foreground">EMD required</dt>
-            <dd className="font-medium tabular-nums">{inr.format(emdAmount)}</dd>
-            <dt className="text-muted-foreground">After join</dt>
-            <dd
-              className={`font-medium tabular-nums ${
-                walletBalance - emdAmount < 0 ? 'text-destructive' : ''
-              }`}
+    <tr className="border-b last:border-b-0">
+      <td className="px-3 py-2 tabular-nums">{lot.lotNo}</td>
+      <td className="px-3 py-2">
+        <div className="font-medium">{lot.itemName}</div>
+        {lot.description && (
+          <div className="line-clamp-1 text-xs text-muted-foreground">{lot.description}</div>
+        )}
+      </td>
+      <td className="px-3 py-2 text-xs text-muted-foreground">{formatWhen(lot.startTime)}</td>
+      <td className="px-3 py-2 text-xs text-muted-foreground">{formatWhen(lot.endTime)}</td>
+      <td className="px-3 py-2 text-right tabular-nums">
+        {lot.qty} {lot.uom}
+      </td>
+      <td className="px-3 py-2 text-right tabular-nums">
+        {formatRsFromCents(lot.startingPriceCents)}
+      </td>
+      <td className="px-3 py-2 text-right tabular-nums">
+        {lot.releasedAt ? '—' : inr.format(lot.emdHeldAmount)}
+      </td>
+      <td className="px-3 py-2">
+        {outcome ? (
+          <div className="flex flex-col gap-1">
+            <span
+              className={`inline-block w-fit rounded px-1.5 py-0.5 text-[10px] font-medium ${outcome.tone}`}
             >
-              {inr.format(walletBalance - emdAmount)}
-            </dd>
-          </dl>
+              {outcome.label}
+            </span>
+            {lot.isWinner && (
+              <span className="text-[10px] font-medium text-emerald-700">
+                You won @ {formatRsFromCents(lot.winningBidAmountCents ?? 0)}
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
         )}
-        {insufficientBalance && (
-          <p className="text-sm text-destructive">
-            Insufficient wallet balance. Contact the admin team to top up.
-          </p>
-        )}
-        {error != null && (
-          <p className="text-sm text-destructive">
-            {error instanceof ApiError ? error.message : 'Failed to join'}
-          </p>
-        )}
-        <div className="flex items-center gap-2">
-          <Button onClick={onJoin} disabled={busy || !canJoin || insufficientBalance}>
-            {busy ? 'Joining…' : 'Join auction'}
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/wallet">Wallet</Link>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      </td>
+    </tr>
   );
 }

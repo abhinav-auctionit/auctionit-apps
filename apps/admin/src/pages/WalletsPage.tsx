@@ -151,7 +151,9 @@ export function WalletsPage() {
                       <TableHead>Bidder</TableHead>
                       <TableHead>Company</TableHead>
                       <TableHead>Mobile</TableHead>
-                      <TableHead className="text-right">Balance</TableHead>
+                      <TableHead className="text-right">Available</TableHead>
+                      <TableHead className="text-right">Locked</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -170,6 +172,12 @@ export function WalletsPage() {
                         <TableCell className="font-mono text-xs">
                           {r.contactCountryCode}
                           {r.contactNumber}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {inr.format(r.balance - r.lockedBalance)}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground tabular-nums">
+                          {inr.format(r.lockedBalance)}
                         </TableCell>
                         <TableCell className="text-right font-semibold tabular-nums">
                           {inr.format(r.balance)}
