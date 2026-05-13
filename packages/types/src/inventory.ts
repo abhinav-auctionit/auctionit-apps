@@ -6,9 +6,7 @@ export type AttributeType = z.infer<typeof attributeTypeSchema>;
 export const uomSchema = z.enum(['MT', 'KG', 'NOS', 'PCS', 'LTR', 'BAG', 'CUM', 'BOX']);
 export type Uom = z.infer<typeof uomSchema>;
 
-export const hsnCodeSchema = z
-  .string()
-  .regex(/^\d{4}$|^\d{6}$|^\d{8}$/, 'HSN must be 4, 6, or 8 digits');
+export const hsnCodeSchema = z.string().trim().min(1, 'HSN is required').max(32);
 
 const nameField = z.string().trim().min(1).max(255);
 
@@ -63,7 +61,7 @@ export const createItemSchema = z.object({
   subcategoryId: z.string().uuid(),
   name: nameField,
   uom: uomSchema,
-  hsnCode: hsnCodeSchema.optional(),
+  hsnCode: hsnCodeSchema,
   benchmarkCents: z.number().int().nonnegative().optional(),
 });
 export type CreateItemInput = z.infer<typeof createItemSchema>;
@@ -72,7 +70,7 @@ export const updateItemSchema = z.object({
   subcategoryId: z.string().uuid().optional(),
   name: nameField.optional(),
   uom: uomSchema.optional(),
-  hsnCode: hsnCodeSchema.nullable().optional(),
+  hsnCode: hsnCodeSchema.optional(),
   benchmarkCents: z.number().int().nonnegative().nullable().optional(),
 });
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;

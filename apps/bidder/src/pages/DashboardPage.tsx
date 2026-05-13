@@ -30,7 +30,20 @@ export function DashboardPage() {
     retry: false,
   });
 
+  const invitations = useQuery({
+    queryKey: ['bidder', 'me', 'invitations'],
+    queryFn: () => api.bidder.listMyInvitations(),
+    enabled: !!user && user.role === 'bidder',
+    retry: false,
+  });
+
   if (!user) return null;
+
+  const open = (invitations.data ?? []).filter(
+    (i) => i.auction.status === 'live' || i.auction.status === 'scheduled',
+  );
+  const liveCount = open.filter((i) => i.auction.status === 'live').length;
+  const upcomingCount = open.length - liveCount;
 
   return (
     <AppShell>
@@ -77,11 +90,29 @@ export function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Live auctions</CardTitle>
-              <CardDescription>Browse open auctions and place bids.</CardDescription>
+              <CardTitle className="text-base">Auction invitations</CardTitle>
+              <CardDescription>Auctions you've been invited to bid in.</CardDescription>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              No live auctions to show yet.
+            <CardContent>
+              {invitations.isLoading && (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              )}
+              {invitations.data && (
+                <>
+                  <p className="tabular-nums text-3xl font-semibold tracking-tight">
+                    {open.length}
+                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {liveCount > 0 && `${liveCount} live · `}
+                    {upcomingCount} upcoming
+                    {invitations.data.length > open.length &&
+                      ` · ${invitations.data.length - open.length} past`}
+                  </p>
+                </>
+              )}
+              <Button asChild variant="outline" size="sm" className="mt-4">
+                <Link to="/auctions">View auctions</Link>
+              </Button>
             </CardContent>
           </Card>
         </div>

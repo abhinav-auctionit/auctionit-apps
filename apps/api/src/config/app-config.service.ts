@@ -154,6 +154,8 @@ export class AppConfig {
       dltTemplateId: this.cs.get('SMS_DLT_TEMPLATE_ID', { infer: true }),
       successToken: this.cs.get('SMS_SUCCESS_TOKEN', { infer: true }),
       logEnabled: this.cs.get('SMS_LOG_ENABLED', { infer: true }),
+      invitationTemplate: this.cs.get('SMS_INVITATION_TEMPLATE', { infer: true }),
+      dltInvitationTemplateId: this.cs.get('SMS_DLT_INVITATION_TEMPLATE_ID', { infer: true }),
     };
   }
 }

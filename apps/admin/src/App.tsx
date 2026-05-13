@@ -13,9 +13,13 @@ import { ItemDetailPage } from './pages/ItemDetailPage';
 import { NewItemPage } from './pages/NewItemPage';
 import { BiddersPage } from './pages/BiddersPage';
 import { BidderDetailPage } from './pages/BidderDetailPage';
+import { WalletsPage } from './pages/WalletsPage';
 import { ClientsPage } from './pages/ClientsPage';
 import { ClientDetailPage } from './pages/ClientDetailPage';
 import { NewClientPage } from './pages/NewClientPage';
+import { AuctionsListPage } from './pages/AuctionsListPage';
+import { AuctionDetailPage } from './pages/AuctionDetailPage';
+import { NewAuctionPage } from './pages/NewAuctionPage';
 
 const queryClient = new QueryClient();
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
@@ -49,9 +53,13 @@ export function App() {
             <Route path="/items/:id" element={adminRoute(<ItemDetailPage />)} />
             <Route path="/bidders" element={adminRoute(<BiddersPage />)} />
             <Route path="/bidders/:id" element={adminRoute(<BidderDetailPage />)} />
+            <Route path="/wallets" element={adminRoute(<WalletsPage />)} />
             <Route path="/clients" element={adminRoute(<ClientsPage />)} />
             <Route path="/clients/new" element={adminRoute(<NewClientPage />)} />
             <Route path="/clients/:id" element={adminRoute(<ClientDetailPage />)} />
+            <Route path="/auctions" element={adminRoute(<AuctionsListPage />)} />
+            <Route path="/auctions/new" element={adminRoute(<NewAuctionPage />)} />
+            <Route path="/auctions/:id" element={adminRoute(<AuctionDetailPage />)} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <Toaster />

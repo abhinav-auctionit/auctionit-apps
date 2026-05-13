@@ -36,6 +36,36 @@ export class WalletService {
     });
   }
 
+  /**
+   * Admin wallet overview: every approved bidder with their balance (or 0
+   * if no wallet row exists yet). One query — no N+1.
+   */
+  async listAllWallets() {
+    const profiles = await this.prisma.bidderProfile.findMany({
+      where: { status: 'approved' },
+      select: {
+        id: true,
+        fullName: true,
+        companyName: true,
+        contactCountryCode: true,
+        contactNumber: true,
+        user: { select: { id: true, name: true, email: true } },
+        wallet: { select: { balance: true, updatedAt: true } },
+      },
+      orderBy: { fullName: 'asc' },
+    });
+    return profiles.map((p) => ({
+      profileId: p.id,
+      fullName: p.fullName,
+      companyName: p.companyName,
+      contactCountryCode: p.contactCountryCode,
+      contactNumber: p.contactNumber,
+      user: p.user,
+      balance: p.wallet?.balance ?? 0,
+      walletUpdatedAt: p.wallet?.updatedAt ?? null,
+    }));
+  }
+
   async getOrCreateByUserId(userId: string): Promise<BidderWallet> {
     const profile = await this.prisma.bidderProfile.findUnique({
       where: { userId },

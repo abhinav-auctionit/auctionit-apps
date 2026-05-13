@@ -55,7 +55,7 @@ export function NewItemPage() {
         subcategoryId,
         name: name.trim(),
         uom,
-        hsnCode: hsn.trim() ? hsn.trim() : undefined,
+        hsnCode: hsn.trim(),
         benchmarkCents: benchmark ? Math.round(Number(benchmark) * 100) : undefined,
       }),
     onSuccess: (item) => navigate(`/items/${item.id}`),
@@ -164,12 +164,13 @@ export function NewItemPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="hsn">HSN code (optional)</Label>
+                <Label htmlFor="hsn">HSN code</Label>
                 <Input
                   id="hsn"
                   value={hsn}
                   onChange={(e) => setHsn(e.target.value)}
-                  placeholder="4, 6, or 8 digits"
+                  required
+                  maxLength={32}
                   className="font-mono"
                 />
               </div>

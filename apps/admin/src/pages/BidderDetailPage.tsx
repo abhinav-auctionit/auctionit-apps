@@ -206,7 +206,9 @@ export function BidderDetailPage() {
           </Section>
         </div>
 
-        <BidderWalletSection profileId={p.id} />
+        <div id="wallet">
+          <BidderWalletSection profileId={p.id} />
+        </div>
 
         <Card>
           <CardHeader>

@@ -1,52 +1,238 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  type AuctionStatus,
+  Prisma,
+  type Auction,
+  type Lot,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { CreateAuctionDto } from './dto/create-auction.dto';
+import type { UpdateAuctionDto } from './dto/update-auction.dto';
+import type { CreateLotDto } from './dto/create-lot.dto';
+import type { UpdateLotDto } from './dto/update-lot.dto';
+
+const LIST_INCLUDE = {
+  client: { select: { id: true, companyName: true, country: true } },
+  _count: { select: { lots: true } },
+} satisfies Prisma.AuctionInclude;
+
+const DETAIL_INCLUDE = {
+  client: { select: { id: true, companyName: true, country: true } },
+  createdBy: { select: { id: true, name: true, email: true } },
+  lots: {
+    orderBy: { lotNo: 'asc' as const },
+    include: {
+      item: { select: { id: true, name: true, uom: true } },
+    },
+  },
+} satisfies Prisma.AuctionInclude;
 
 @Injectable()
 export class AuctionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list() {
+  async list(filter: { clientId?: string; code?: string; status?: AuctionStatus }) {
     return this.prisma.auction.findMany({
-      orderBy: { startsAt: 'desc' },
-      take: 100,
-    });
-  }
-
-  async listUpcomingPublic(limit = 24) {
-    const rows = await this.prisma.auction.findMany({
-      where: { status: { in: ['scheduled', 'live'] } },
-      orderBy: { startsAt: 'asc' },
-      take: limit,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        startingPriceCents: true,
-        currentPriceCents: true,
-        status: true,
-        startsAt: true,
-        endsAt: true,
+      where: {
+        ...(filter.clientId ? { clientId: filter.clientId } : {}),
+        ...(filter.status ? { status: filter.status } : {}),
+        ...(filter.code
+          ? { code: { contains: filter.code, mode: 'insensitive' } }
+          : {}),
       },
+      include: LIST_INCLUDE,
+      orderBy: { createdAt: 'desc' },
+      take: 200,
     });
-    return rows;
   }
 
   async findOne(id: string) {
     const row = await this.prisma.auction.findUnique({
       where: { id },
-      include: { seller: true },
+      include: DETAIL_INCLUDE,
     });
-    if (!row) throw new NotFoundException(`auction ${id} not found`);
+    if (!row) throw new NotFoundException('auction not found');
     return row;
   }
 
-  async create(sellerId: string, dto: CreateAuctionDto) {
-    return this.prisma.auction.create({
+  async create(dto: CreateAuctionDto, createdById: string): Promise<Auction> {
+    const client = await this.prisma.client.findUnique({
+      where: { id: dto.clientId },
+      select: { id: true, isActive: true },
+    });
+    if (!client) throw new BadRequestException('clientId: client not found');
+    if (!client.isActive) {
+      throw new BadRequestException('client is inactive — reactivate before creating auctions');
+    }
+    try {
+      return await this.prisma.auction.create({
+        data: {
+          clientId: dto.clientId,
+          code: dto.code,
+          name: dto.name,
+          auctionType: dto.auctionType,
+          emdAmount: dto.emdAmount,
+          description: dto.description ?? null,
+          createdById,
+        },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw new ConflictException(`auction code "${dto.code}" already exists`);
+      }
+      throw err;
+    }
+  }
+
+  async update(id: string, dto: UpdateAuctionDto): Promise<Auction> {
+    await this.findOne(id);
+    try {
+      return await this.prisma.auction.update({
+        where: { id },
+        data: {
+          ...(dto.code !== undefined ? { code: dto.code } : {}),
+          ...(dto.name !== undefined ? { name: dto.name } : {}),
+          ...(dto.auctionType !== undefined ? { auctionType: dto.auctionType } : {}),
+          ...(dto.emdAmount !== undefined ? { emdAmount: dto.emdAmount } : {}),
+          ...(dto.description !== undefined ? { description: dto.description } : {}),
+          ...(dto.status !== undefined ? { status: dto.status } : {}),
+        },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw new ConflictException(`auction code already exists`);
+      }
+      throw err;
+    }
+  }
+
+  // -- Lots ------------------------------------------------------------------
+
+  async addLot(auctionId: string, dto: CreateLotDto): Promise<Lot> {
+    const auction = await this.findOne(auctionId);
+    if (auction.status === 'ended' || auction.status === 'cancelled') {
+      throw new BadRequestException(`cannot add lots to ${auction.status} auction`);
+    }
+    const last = await this.prisma.lot.findFirst({
+      where: { auctionId },
+      orderBy: { lotNo: 'desc' },
+      select: { lotNo: true },
+    });
+    const lotNo = (last?.lotNo ?? 0) + 1;
+
+    if (dto.itemId) {
+      const item = await this.prisma.item.findUnique({
+        where: { id: dto.itemId },
+        select: { id: true },
+      });
+      if (!item) throw new BadRequestException('itemId: item not found');
+    }
+
+    return this.prisma.lot.create({
       data: {
-        ...dto,
-        sellerId,
-        currentPriceCents: dto.startingPriceCents,
+        auctionId,
+        lotNo,
+        itemId: dto.itemId ?? null,
+        itemName: dto.itemName,
+        description: dto.description ?? null,
+        qty: dto.qty,
+        uom: dto.uom,
+        auctionDate: dto.auctionDate,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        startingPriceCents: dto.startingPriceCents,
+        bidIncrementCents: dto.bidIncrementCents,
+      },
+    });
+  }
+
+  async updateLot(auctionId: string, lotId: string, dto: UpdateLotDto): Promise<Lot> {
+    const lot = await this.prisma.lot.findUnique({ where: { id: lotId } });
+    if (!lot || lot.auctionId !== auctionId) {
+      throw new NotFoundException('lot not found in this auction');
+    }
+    if (dto.itemId) {
+      const item = await this.prisma.item.findUnique({
+        where: { id: dto.itemId },
+        select: { id: true },
+      });
+      if (!item) throw new BadRequestException('itemId: item not found');
+    }
+    return this.prisma.lot.update({
+      where: { id: lotId },
+      data: {
+        ...(dto.itemId !== undefined ? { itemId: dto.itemId } : {}),
+        ...(dto.itemName !== undefined ? { itemName: dto.itemName } : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.qty !== undefined ? { qty: dto.qty } : {}),
+        ...(dto.uom !== undefined ? { uom: dto.uom } : {}),
+        ...(dto.auctionDate !== undefined ? { auctionDate: dto.auctionDate } : {}),
+        ...(dto.startTime !== undefined ? { startTime: dto.startTime } : {}),
+        ...(dto.endTime !== undefined ? { endTime: dto.endTime } : {}),
+        ...(dto.startingPriceCents !== undefined
+          ? { startingPriceCents: dto.startingPriceCents }
+          : {}),
+        ...(dto.bidIncrementCents !== undefined
+          ? { bidIncrementCents: dto.bidIncrementCents }
+          : {}),
+      },
+    });
+  }
+
+  async deleteLot(auctionId: string, lotId: string): Promise<void> {
+    const lot = await this.prisma.lot.findUnique({
+      where: { id: lotId },
+      include: { _count: { select: { bids: true } } },
+    });
+    if (!lot || lot.auctionId !== auctionId) {
+      throw new NotFoundException('lot not found in this auction');
+    }
+    if (lot._count.bids > 0) {
+      throw new ConflictException(
+        'cannot delete a lot that already has bids; cancel the auction instead',
+      );
+    }
+    await this.prisma.lot.delete({ where: { id: lotId } });
+  }
+
+  // -- Public listing --------------------------------------------------------
+
+  async listUpcomingPublic(limit = 24) {
+    return this.prisma.auction.findMany({
+      where: {
+        status: { in: ['scheduled', 'live'] },
+        lots: { some: {} },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        auctionType: true,
+        status: true,
+        emdAmount: true,
+        description: true,
+        client: { select: { companyName: true } },
+        lots: {
+          orderBy: { startTime: 'asc' },
+          select: {
+            id: true,
+            lotNo: true,
+            itemName: true,
+            qty: true,
+            uom: true,
+            startTime: true,
+            endTime: true,
+            startingPriceCents: true,
+            bidIncrementCents: true,
+          },
+        },
       },
     });
   }

@@ -30,8 +30,11 @@ const NAV: NavItem[] = [
   {
     kind: 'group',
     label: 'Bidders',
-    basePaths: ['/bidders'],
-    children: [{ kind: 'leaf', label: 'Applications', to: '/bidders' }],
+    basePaths: ['/bidders', '/wallets'],
+    children: [
+      { kind: 'leaf', label: 'Applications', to: '/bidders' },
+      { kind: 'leaf', label: 'Wallets', to: '/wallets' },
+    ],
   },
   {
     kind: 'group',
@@ -40,6 +43,15 @@ const NAV: NavItem[] = [
     children: [
       { kind: 'leaf', label: 'All clients', to: '/clients', end: true },
       { kind: 'leaf', label: 'Onboard client', to: '/clients/new' },
+    ],
+  },
+  {
+    kind: 'group',
+    label: 'Auctions',
+    basePaths: ['/auctions'],
+    children: [
+      { kind: 'leaf', label: 'All auctions', to: '/auctions', end: true },
+      { kind: 'leaf', label: 'New auction', to: '/auctions/new' },
     ],
   },
 ];

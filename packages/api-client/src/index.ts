@@ -33,6 +33,14 @@ import type {
   ClientCreateInput,
   OtherChargeType,
   StaggeringOfLots,
+  AuctionStatus,
+  AuctionType,
+  CreateAuctionInput,
+  CreateLotInput,
+  UpdateAuctionInput,
+  UpdateLotInput,
+  InvitationNotificationStatus,
+  InviteBiddersInput,
 } from '@auction/types';
 
 export type ApiClientOptions = {
@@ -109,7 +117,7 @@ export type ItemListRow = {
   id: string;
   name: string;
   uom: Uom;
-  hsnCode: string | null;
+  hsnCode: string;
   benchmarkCents: number | null;
   subcategoryId: string;
   subcategoryName: string;
@@ -230,6 +238,17 @@ export type WalletTransaction = {
   createdBy?: { id: string; name: string; email: string } | null;
 };
 
+export type BidderWalletRow = {
+  profileId: string;
+  fullName: string;
+  companyName: string | null;
+  contactCountryCode: string;
+  contactNumber: string;
+  user: { id: string; name: string; email: string };
+  balance: number;
+  walletUpdatedAt: string | null;
+};
+
 export type Client = {
   id: string;
   companyName: string;
@@ -263,6 +282,115 @@ export type Client = {
 };
 
 export type ClientWithTnc = Client & { tncFile: StoredFile | null };
+
+export type Auction = {
+  id: string;
+  clientId: string;
+  code: string;
+  name: string;
+  auctionType: AuctionType;
+  status: AuctionStatus;
+  emdAmount: number;
+  description: string | null;
+  createdById: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AuctionListRow = Auction & {
+  client: { id: string; companyName: string; country: string };
+  _count: { lots: number };
+};
+
+export type Lot = {
+  id: string;
+  auctionId: string;
+  lotNo: number;
+  itemId: string | null;
+  itemName: string;
+  description: string | null;
+  qty: string;
+  uom: Uom;
+  auctionDate: string;
+  startTime: string;
+  endTime: string;
+  startingPriceCents: number;
+  bidIncrementCents: number;
+  createdAt: string;
+  updatedAt: string;
+  item?: { id: string; name: string; uom: Uom } | null;
+};
+
+export type AuctionDetail = Auction & {
+  client: { id: string; companyName: string; country: string };
+  createdBy: { id: string; name: string; email: string } | null;
+  lots: Lot[];
+};
+
+export type AuctionInvitation = {
+  id: string;
+  auctionId: string;
+  bidderProfileId: string;
+  invitedById: string | null;
+  invitedAt: string;
+  notificationStatus: InvitationNotificationStatus;
+  notificationSentAt: string | null;
+  notificationError: string | null;
+  joinedAt: string | null;
+};
+
+export type BidderAuctionSummary = {
+  id: string;
+  code: string;
+  name: string;
+  auctionType: AuctionType;
+  status: AuctionStatus;
+  emdAmount: number;
+  description: string | null;
+  client: { id: string; companyName: string };
+  lots: Array<{
+    id: string;
+    lotNo: number;
+    itemName: string;
+    qty: string;
+    uom: Uom;
+    auctionDate: string;
+    startTime: string;
+    endTime: string;
+    startingPriceCents: number;
+    bidIncrementCents: number;
+  }>;
+};
+
+export type BidderInvitation = AuctionInvitation & {
+  auction: BidderAuctionSummary;
+};
+
+export type AuctionInvitationWithBidder = AuctionInvitation & {
+  bidderProfile: {
+    id: string;
+    fullName: string;
+    contactCountryCode: string;
+    contactNumber: string;
+    companyName: string | null;
+    status: 'draft' | 'pending_approval' | 'approved' | 'rejected';
+    user: { id: string; email: string; name: string };
+  };
+  invitedBy: { id: string; name: string; email: string } | null;
+};
+
+export type InviteResult = {
+  summary: {
+    requested: number;
+    created: number;
+    skippedExisting: number;
+    notSent: number;
+    sent: number;
+    failed: number;
+    notFound: string[];
+  };
+  invitations: AuctionInvitation[];
+};
 
 export function createApiClient({ baseUrl }: ApiClientOptions) {
   const json = (method: string, body?: unknown) => ({
@@ -317,6 +445,16 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
         const suffix = qs.toString() ? `?${qs}` : '';
         return request<WalletTransaction[]>(baseUrl, `/bidder/me/wallet/transactions${suffix}`);
       },
+      listMyInvitations: () =>
+        request<BidderInvitation[]>(baseUrl, '/bidder/me/invitations'),
+      getInvitedAuction: (auctionId: string) =>
+        request<BidderInvitation>(baseUrl, `/bidder/me/auctions/${auctionId}`),
+      joinAuction: (auctionId: string) =>
+        request<AuctionInvitation>(
+          baseUrl,
+          `/bidder/me/auctions/${auctionId}/join`,
+          { method: 'POST' },
+        ),
     },
     files: {
       upload: async (file: File): Promise<StoredFile> => {
@@ -368,6 +506,8 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
           `/admin/bidder-profiles/${id}/reject`,
           json('POST', body),
         ),
+      listWallets: () =>
+        request<BidderWalletRow[]>(baseUrl, '/admin/bidder-profiles/wallets'),
       getWallet: (id: string) =>
         request<Wallet>(baseUrl, `/admin/bidder-profiles/${id}/wallet`),
       listWalletTxns: (id: string, params: { limit?: number; before?: string } = {}) => {
@@ -398,6 +538,41 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
       get: (id: string) => request<ClientWithTnc>(baseUrl, `/admin/clients/${id}`),
       create: (body: ClientCreateInput) =>
         request<Client>(baseUrl, '/admin/clients', json('POST', body)),
+    },
+    adminAuctions: {
+      list: (params: { clientId?: string; code?: string; status?: AuctionStatus } = {}) => {
+        const qs = new URLSearchParams();
+        if (params.clientId) qs.set('clientId', params.clientId);
+        if (params.code) qs.set('code', params.code);
+        if (params.status) qs.set('status', params.status);
+        const suffix = qs.toString() ? `?${qs}` : '';
+        return request<AuctionListRow[]>(baseUrl, `/admin/auctions${suffix}`);
+      },
+      get: (id: string) => request<AuctionDetail>(baseUrl, `/admin/auctions/${id}`),
+      create: (body: CreateAuctionInput) =>
+        request<Auction>(baseUrl, '/admin/auctions', json('POST', body)),
+      update: (id: string, body: UpdateAuctionInput) =>
+        request<Auction>(baseUrl, `/admin/auctions/${id}`, json('PATCH', body)),
+      addLot: (id: string, body: CreateLotInput) =>
+        request<Lot>(baseUrl, `/admin/auctions/${id}/lots`, json('POST', body)),
+      updateLot: (id: string, lotId: string, body: UpdateLotInput) =>
+        request<Lot>(baseUrl, `/admin/auctions/${id}/lots/${lotId}`, json('PATCH', body)),
+      deleteLot: (id: string, lotId: string) =>
+        request<void>(baseUrl, `/admin/auctions/${id}/lots/${lotId}`, { method: 'DELETE' }),
+      listInvitations: (id: string) =>
+        request<AuctionInvitationWithBidder[]>(baseUrl, `/admin/auctions/${id}/invitations`),
+      invite: (id: string, body: InviteBiddersInput) =>
+        request<InviteResult>(
+          baseUrl,
+          `/admin/auctions/${id}/invitations`,
+          json('POST', body),
+        ),
+      uninvite: (id: string, invitationId: string) =>
+        request<void>(
+          baseUrl,
+          `/admin/auctions/${id}/invitations/${invitationId}`,
+          { method: 'DELETE' },
+        ),
     },
     inventory: {
       listCategories: () => request<CategoryWithSubcategories[]>(baseUrl, '/categories'),

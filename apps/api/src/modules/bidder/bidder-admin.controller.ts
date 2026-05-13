@@ -38,6 +38,12 @@ export class BidderAdminController {
     return this.admin.list({ status: parsed.data.status as BidderStatus | undefined });
   }
 
+  // NOTE: must precede `@Get(':id')` so the static path isn't UUID-parsed.
+  @Get('wallets')
+  listAllWallets() {
+    return this.wallet.listAllWallets();
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.admin.findOne(id);

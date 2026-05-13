@@ -24,10 +24,11 @@ export class AnalyticsMantraSmsService implements SmsService {
 
   constructor(private readonly cfg: AnalyticsMantraConfig) {}
 
-  async send({ to, message }: SmsSendInput): Promise<void> {
+  async send({ to, message, dltTemplateId }: SmsSendInput): Promise<void> {
     // Gateway expects digits only — strip leading "+" if E.164 was passed in.
     const mobile = to.replace(/^\+/, '');
     const startedAt = Date.now();
+    const templateId = dltTemplateId ?? this.cfg.dltTemplateId;
 
     if (this.cfg.logEnabled) {
       this.logger.log(`[SMS] sending to=${mobile} message="${message}"`);
@@ -44,7 +45,7 @@ export class AnalyticsMantraSmsService implements SmsService {
     url.searchParams.set('message', message);
     if (this.cfg.dltPeid) url.searchParams.set('PEID', this.cfg.dltPeid);
     if (this.cfg.dltHeaderId) url.searchParams.set('HeaderId', this.cfg.dltHeaderId);
-    if (this.cfg.dltTemplateId) url.searchParams.set('templateId', this.cfg.dltTemplateId);
+    if (templateId) url.searchParams.set('templateId', templateId);
 
     let res: Response;
     try {

@@ -65,6 +65,15 @@ export const envSchema = z.object({
     .default(
       '{OTP} is your Authorization OTP for login verification. OTP will expire in 15 minutes. Regards- JindalX',
     ),
+  // Auction-invitation DLT template. {AUCTION} is replaced with the auction's
+  // code or name. Register a separate DLT template for this and override the
+  // template id below; OTP and invitation traffic must not share a template id.
+  SMS_INVITATION_TEMPLATE: z
+    .string()
+    .default(
+      'You are invited to bid in auction {AUCTION}. Visit bid.auctionit.ai for details. Regards- JindalX',
+    ),
+  SMS_DLT_INVITATION_TEMPLATE_ID: z.string().optional(),
   // When true, log the full message body (incl. OTP) and gateway response.
   // When false, log only metadata (recipient, message length, status).
   // Recommend `false` in production to keep OTPs out of log aggregators.
