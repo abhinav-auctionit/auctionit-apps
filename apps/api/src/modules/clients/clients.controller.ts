@@ -19,6 +19,8 @@ import { ClientLocationCreateDto } from './dto/client-location-create.dto';
 import { ClientLocationUpdateDto } from './dto/client-location-update.dto';
 import { ClientContactCreateDto } from './dto/client-contact-create.dto';
 import { ClientContactUpdateDto } from './dto/client-contact-update.dto';
+import { ClientEngagementCreateDto } from './dto/client-engagement-create.dto';
+import { ClientEngagementUpdateDto } from './dto/client-engagement-update.dto';
 
 @ApiTags('admin/clients')
 @Roles('admin')
@@ -103,5 +105,46 @@ export class ClientsAdminController {
     @Param('contactId', ParseUUIDPipe) contactId: string,
   ) {
     return this.clients.deleteContact(id, locationId, contactId);
+  }
+
+  // -- Auction history -------------------------------------------------------
+
+  @Get(':id/auction-history')
+  getAuctionHistory(@Param('id', ParseUUIDPipe) id: string) {
+    return this.clients.getAuctionHistory(id);
+  }
+
+  // -- Engagements -----------------------------------------------------------
+
+  @Get(':id/engagements')
+  listEngagements(@Param('id', ParseUUIDPipe) id: string) {
+    return this.clients.listEngagements(id);
+  }
+
+  @Post(':id/engagements')
+  createEngagement(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ClientEngagementCreateDto,
+    @CurrentUser() user: SafeUser,
+  ) {
+    return this.clients.createEngagement(id, dto, user.id);
+  }
+
+  @Patch(':id/engagements/:engagementId')
+  updateEngagement(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('engagementId', ParseUUIDPipe) engagementId: string,
+    @Body() dto: ClientEngagementUpdateDto,
+  ) {
+    return this.clients.updateEngagement(id, engagementId, dto);
+  }
+
+  @Delete(':id/engagements/:engagementId')
+  @HttpCode(204)
+  deleteEngagement(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('engagementId', ParseUUIDPipe) engagementId: string,
+  ) {
+    return this.clients.deleteEngagement(id, engagementId);
   }
 }

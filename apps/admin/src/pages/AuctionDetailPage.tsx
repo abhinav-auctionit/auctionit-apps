@@ -123,7 +123,9 @@ export function AuctionDetailPage() {
             <p className="font-mono text-xs text-muted-foreground">{a.code}</p>
             <h1 className="mt-1 text-2xl font-semibold">{a.name}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {a.client.companyName} · {TYPE_LABEL[a.auctionType] ?? a.auctionType}
+              {a.client.companyName}
+              {a.location ? ` · ${a.location.name}` : ''} ·{' '}
+              {TYPE_LABEL[a.auctionType] ?? a.auctionType}
               {a.emdAmount > 0 ? ` · EMD ${inr.format(a.emdAmount)}` : ''}
             </p>
           </div>

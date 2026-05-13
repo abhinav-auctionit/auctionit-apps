@@ -17,6 +17,7 @@ const trimmedString = (max: number) => z.string().trim().min(1).max(max);
 
 export const createAuctionSchema = z.object({
   clientId: z.string().uuid(),
+  locationId: z.string().uuid().optional().nullable(),
   code: trimmedString(64),
   name: trimmedString(255),
   auctionType: auctionTypeSchema,
@@ -27,6 +28,7 @@ export type CreateAuctionInput = z.infer<typeof createAuctionSchema>;
 
 export const updateAuctionSchema = z
   .object({
+    locationId: z.string().uuid().nullable(),
     code: trimmedString(64),
     name: trimmedString(255),
     auctionType: auctionTypeSchema,

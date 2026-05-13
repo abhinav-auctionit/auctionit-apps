@@ -142,6 +142,28 @@ enum StaggeringOfLots {
   @@map("staggering_of_lots")
 }
 
+enum EngagementPurpose {
+  auction_follow_up
+  auction_debrief
+  complaint_escalation
+  invoice_query
+  general_check_in
+  other
+
+  @@map("engagement_purpose")
+}
+
+enum EngagementMedium {
+  phone_call
+  email
+  in_person
+  video_call
+  whatsapp
+  other
+
+  @@map("engagement_medium")
+}
+
 model User {
   id                String   @id @default(uuid()) @db.Uuid
   email             String   @unique @db.VarChar(255)
@@ -160,6 +182,7 @@ model User {
   bidderProfile      BidderProfile?
   recordedWalletTxns WalletTransaction[] @relation("WalletTxnCreatedBy")
   invitedInvitations AuctionInvitation[] @relation("InvitedBy")
+  loggedEngagements  ClientEngagement[]  @relation("EngagementLoggedBy")
 
   @@unique([mobileCountryCode, mobileNumber], map: "users_mobile_unique")
   @@map("users")
@@ -343,6 +366,7 @@ model Client {
   tncFile   StoredFile? @relation("ClientTnc", fields: [tncFileId], references: [id], onDelete: SetNull)
   auctions  Auction[]
   locations ClientLocation[]
+  engagements ClientEngagement[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -365,12 +389,34 @@ model ClientLocation {
 
   client   Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
   contacts ClientContactPoint[]
+  auctions Auction[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([clientId], map: "client_locations_client_idx")
   @@map("client_locations")
+}
+
+model ClientEngagement {
+  id          String            @id @default(uuid()) @db.Uuid
+  clientId    String            @map("client_id") @db.Uuid
+  happenedAt  DateTime          @map("happened_at") @db.Timestamptz(6)
+  personName  String            @map("person_name") @db.VarChar(120)
+  personRole  String?           @map("person_role") @db.VarChar(120)
+  purpose     EngagementPurpose
+  medium      EngagementMedium
+  comments    String            @db.Text
+  createdById String?           @map("created_by_id") @db.Uuid
+
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy User?  @relation("EngagementLoggedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([clientId, happenedAt(sort: Desc)], map: "client_engagements_client_happened_idx")
+  @@map("client_engagements")
 }
 
 model ClientContactPoint {
@@ -410,6 +456,7 @@ model Session {
 model Auction {
   id          String        @id @default(uuid()) @db.Uuid
   clientId    String        @map("client_id") @db.Uuid
+  locationId  String?       @map("location_id") @db.Uuid
   code        String        @unique @db.VarChar(64)
   name        String        @db.VarChar(255)
   auctionType AuctionType   @map("auction_type")
@@ -421,12 +468,14 @@ model Auction {
   updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   client      Client              @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  location    ClientLocation?     @relation(fields: [locationId], references: [id], onDelete: SetNull)
   createdBy   User?               @relation("AuctionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   lots        Lot[]
   invitations AuctionInvitation[]
 
   @@index([clientId], map: "auctions_client_idx")
   @@index([status], map: "auctions_status_idx")
+  @@index([locationId], map: "auctions_location_idx")
   @@map("auctions")
 }
 

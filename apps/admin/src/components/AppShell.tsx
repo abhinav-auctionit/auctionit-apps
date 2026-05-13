@@ -30,11 +30,8 @@ const NAV: NavItem[] = [
   {
     kind: 'group',
     label: 'Bidders',
-    basePaths: ['/bidders', '/wallets'],
-    children: [
-      { kind: 'leaf', label: 'Applications', to: '/bidders' },
-      { kind: 'leaf', label: 'Wallets', to: '/wallets' },
-    ],
+    basePaths: ['/bidders'],
+    children: [{ kind: 'leaf', label: 'All bidders', to: '/bidders', end: true }],
   },
   {
     kind: 'group',

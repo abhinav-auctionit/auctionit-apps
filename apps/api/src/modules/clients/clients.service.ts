@@ -6,9 +6,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  AuctionStatus,
   Prisma,
   type Client,
   type ClientContactPoint,
+  type ClientEngagement,
   type ClientLocation,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -17,13 +19,61 @@ import type { ClientLocationCreateDto } from './dto/client-location-create.dto';
 import type { ClientLocationUpdateDto } from './dto/client-location-update.dto';
 import type { ClientContactCreateDto } from './dto/client-contact-create.dto';
 import type { ClientContactUpdateDto } from './dto/client-contact-update.dto';
+import type { ClientEngagementCreateDto } from './dto/client-engagement-create.dto';
+import type { ClientEngagementUpdateDto } from './dto/client-engagement-update.dto';
 
 const LOCATION_INCLUDE = {
   contacts: { orderBy: { createdAt: 'asc' as const } },
 } satisfies Prisma.ClientLocationInclude;
 
+const ENGAGEMENT_INCLUDE = {
+  createdBy: { select: { id: true, name: true, email: true } },
+} satisfies Prisma.ClientEngagementInclude;
+
 export type ClientLocationWithContacts = ClientLocation & {
   contacts: ClientContactPoint[];
+};
+
+export type ClientEngagementWithUser = ClientEngagement & {
+  createdBy: { id: string; name: string; email: string } | null;
+};
+
+type AuctionLocationSummary = {
+  id: string;
+  name: string;
+  city: string;
+  state: string;
+};
+
+export type AuctionHistoryRow = {
+  id: string;
+  code: string;
+  name: string;
+  status: AuctionStatus;
+  startAt: string | null;
+  location: AuctionLocationSummary | null;
+  totalQty: number;
+  qtyUom: string | null;
+  totalAmountCents: number;
+};
+
+export type AuctionHistoryStats = {
+  totalAuctions: number;
+  totalValueCents: number;
+  avgValueCents: number;
+  totalQty: number;
+  qtyUom: string | null;
+};
+
+export type AuctionHistoryUpcoming = AuctionHistoryRow & {
+  firstItemName: string | null;
+};
+
+export type AuctionHistoryResponse = {
+  stats: AuctionHistoryStats;
+  upcoming: AuctionHistoryUpcoming | null;
+  auctions: AuctionHistoryRow[];
+  locations: AuctionLocationSummary[];
 };
 
 @Injectable()
@@ -216,6 +266,162 @@ export class ClientsService {
     await this.prisma.clientContactPoint.delete({ where: { id: contactId } });
   }
 
+  // -- Auction history -------------------------------------------------------
+
+  async getAuctionHistory(clientId: string): Promise<AuctionHistoryResponse> {
+    await this.assertClientExists(clientId);
+
+    const auctions = await this.prisma.auction.findMany({
+      where: { clientId, status: { not: 'draft' } },
+      include: {
+        location: { select: { id: true, name: true, city: true, state: true } },
+        lots: {
+          select: {
+            qty: true,
+            uom: true,
+            startTime: true,
+            itemName: true,
+            bids: {
+              orderBy: { amountCents: 'desc' },
+              take: 1,
+              select: { amountCents: true },
+            },
+          },
+        },
+      },
+    });
+
+    const firstItemNameByAuction = new Map<string, string | null>();
+    const rows: AuctionHistoryRow[] = auctions.map((a) => {
+      const sortedLots = a.lots
+        .slice()
+        .sort((x, y) => x.startTime.getTime() - y.startTime.getTime());
+      const startAt = sortedLots[0]?.startTime ?? null;
+
+      let totalQty = 0;
+      let totalAmountCents = 0;
+      const uomSet = new Set<string>();
+      for (const l of a.lots) {
+        totalQty += Number(l.qty);
+        uomSet.add(l.uom);
+        const winning = l.bids[0]?.amountCents ?? 0;
+        totalAmountCents += winning;
+      }
+      const qtyUom = uomSet.size === 1 ? Array.from(uomSet)[0]! : null;
+      firstItemNameByAuction.set(a.id, sortedLots[0]?.itemName ?? null);
+
+      return {
+        id: a.id,
+        code: a.code,
+        name: a.name,
+        status: a.status,
+        startAt: startAt ? startAt.toISOString() : null,
+        location: a.location,
+        totalQty,
+        qtyUom,
+        totalAmountCents,
+      };
+    });
+
+    rows.sort((a, b) => {
+      const aTime = a.startAt ? Date.parse(a.startAt) : 0;
+      const bTime = b.startAt ? Date.parse(b.startAt) : 0;
+      return bTime - aTime;
+    });
+
+    // Stats across what's visible in the table.
+    const totalAuctions = rows.length;
+    const totalValueCents = rows.reduce((s, r) => s + r.totalAmountCents, 0);
+    const totalQty = rows.reduce((s, r) => s + r.totalQty, 0);
+    const statsUomSet = new Set(rows.map((r) => r.qtyUom).filter((u): u is string => !!u));
+    const qtyUom = statsUomSet.size === 1 ? Array.from(statsUomSet)[0]! : null;
+    const avgValueCents = totalAuctions === 0 ? 0 : Math.round(totalValueCents / totalAuctions);
+
+    // Upcoming = next scheduled auction by earliest lot start time in the future.
+    const now = Date.now();
+    const upcomingCandidates = rows.filter(
+      (r) =>
+        r.status === 'scheduled' && r.startAt !== null && Date.parse(r.startAt) > now,
+    );
+    upcomingCandidates.sort((a, b) => Date.parse(a.startAt!) - Date.parse(b.startAt!));
+    const upcomingRow = upcomingCandidates[0] ?? null;
+
+    const locations = await this.prisma.clientLocation.findMany({
+      where: { clientId },
+      select: { id: true, name: true, city: true, state: true },
+      orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+    });
+
+    return {
+      stats: { totalAuctions, totalValueCents, avgValueCents, totalQty, qtyUom },
+      upcoming: upcomingRow
+        ? {
+            ...upcomingRow,
+            firstItemName: firstItemNameByAuction.get(upcomingRow.id) ?? null,
+          }
+        : null,
+      auctions: rows,
+      locations,
+    };
+  }
+
+  // -- Engagements -----------------------------------------------------------
+
+  async listEngagements(clientId: string): Promise<ClientEngagementWithUser[]> {
+    await this.assertClientExists(clientId);
+    return this.prisma.clientEngagement.findMany({
+      where: { clientId },
+      include: ENGAGEMENT_INCLUDE,
+      orderBy: { happenedAt: 'desc' },
+    });
+  }
+
+  async createEngagement(
+    clientId: string,
+    dto: ClientEngagementCreateDto,
+    createdById: string,
+  ): Promise<ClientEngagementWithUser> {
+    await this.assertClientExists(clientId);
+    return this.prisma.clientEngagement.create({
+      data: {
+        clientId,
+        happenedAt: new Date(dto.happenedAt),
+        personName: dto.personName,
+        personRole: dto.personRole ?? null,
+        purpose: dto.purpose,
+        medium: dto.medium,
+        comments: dto.comments,
+        createdById,
+      },
+      include: ENGAGEMENT_INCLUDE,
+    });
+  }
+
+  async updateEngagement(
+    clientId: string,
+    engagementId: string,
+    dto: ClientEngagementUpdateDto,
+  ): Promise<ClientEngagementWithUser> {
+    await this.assertEngagementBelongs(clientId, engagementId);
+    return this.prisma.clientEngagement.update({
+      where: { id: engagementId },
+      data: {
+        ...(dto.happenedAt !== undefined ? { happenedAt: new Date(dto.happenedAt) } : {}),
+        ...(dto.personName !== undefined ? { personName: dto.personName } : {}),
+        ...(dto.personRole !== undefined ? { personRole: dto.personRole } : {}),
+        ...(dto.purpose !== undefined ? { purpose: dto.purpose } : {}),
+        ...(dto.medium !== undefined ? { medium: dto.medium } : {}),
+        ...(dto.comments !== undefined ? { comments: dto.comments } : {}),
+      },
+      include: ENGAGEMENT_INCLUDE,
+    });
+  }
+
+  async deleteEngagement(clientId: string, engagementId: string): Promise<void> {
+    await this.assertEngagementBelongs(clientId, engagementId);
+    await this.prisma.clientEngagement.delete({ where: { id: engagementId } });
+  }
+
   // -- Helpers ---------------------------------------------------------------
 
   private async assertClientExists(clientId: string): Promise<void> {
@@ -233,6 +439,19 @@ export class ClientsService {
     });
     if (!loc || loc.clientId !== clientId) {
       throw new NotFoundException('location not found for this client');
+    }
+  }
+
+  private async assertEngagementBelongs(
+    clientId: string,
+    engagementId: string,
+  ): Promise<void> {
+    const engagement = await this.prisma.clientEngagement.findUnique({
+      where: { id: engagementId },
+      select: { clientId: true },
+    });
+    if (!engagement || engagement.clientId !== clientId) {
+      throw new NotFoundException('engagement not found for this client');
     }
   }
 

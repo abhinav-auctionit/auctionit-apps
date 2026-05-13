@@ -176,7 +176,7 @@ export function WalletsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <Button asChild size="sm" variant="outline">
-                            <Link to={`/bidders/${r.profileId}#wallet`}>
+                            <Link to={`/bidders/${r.profileId}?tab=wallet`}>
                               Manage
                             </Link>
                           </Button>

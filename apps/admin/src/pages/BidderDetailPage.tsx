@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, type BidderProfileDetail, type StoredFile } from '@auction/api-client';
 import { useApiClient } from '@auction/auth';
@@ -17,6 +17,10 @@ import {
   DialogHeader,
   DialogTitle,
   Label,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   Textarea,
 } from '@auction/ui';
 import { AppShell } from '../components/AppShell';
@@ -25,10 +29,18 @@ import { BidderWalletSection } from '../components/BidderWalletSection';
 const errMsg = (e: unknown) =>
   e instanceof ApiError ? e.message : e instanceof Error ? e.message : 'Action failed';
 
+const TABS = ['details', 'wallet'] as const;
+type TabId = (typeof TABS)[number];
+const isTabId = (v: string | null): v is TabId =>
+  !!v && (TABS as readonly string[]).includes(v);
+
 export function BidderDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const api = useApiClient();
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const activeTab: TabId = isTabId(tabParam) ? tabParam : 'details';
 
   const detail = useQuery({
     queryKey: ['admin', 'bidder-profile', id],
@@ -100,152 +112,174 @@ export function BidderDetailPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Section title="Personal">
-            <Field label="Interested In" value={p.interestedIn ?? '—'} />
-            <Field label="Full Name" value={p.fullName ?? '—'} />
-            <Field
-              label="Contact"
-              value={
-                p.contactCountryCode && p.contactNumber
-                  ? `${p.contactCountryCode} ${p.contactNumber}`
-                  : '—'
-              }
-            />
-            <Field
-              label="Whatsapp"
-              value={
-                p.whatsappCountryCode && p.whatsappNumber
-                  ? `${p.whatsappCountryCode} ${p.whatsappNumber}`
-                  : '—'
-              }
-            />
-          </Section>
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => {
+            const next = new URLSearchParams(searchParams);
+            if (v === 'details') next.delete('tab');
+            else next.set('tab', v);
+            setSearchParams(next, { replace: true });
+          }}
+        >
+          <TabsList>
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="wallet">Wallet</TabsTrigger>
+          </TabsList>
 
-          <Section title="Company">
-            <Field label="Company Name" value={p.companyName ?? '—'} />
-            <Field label="Type" value={p.companyType ?? '—'} />
-            <Field label="Business Activity" value={p.businessActivity ?? '—'} />
-            <Field label="GST" value={p.gst ?? '—'} />
-            <Field label="PAN" value={p.pan ?? '—'} />
-            <Field label="Designation" value={p.designation ?? '—'} />
-            <Field label="Registered Email" value={p.registeredEmail ?? '—'} />
-            <Field label="Secondary Number" value={p.secondaryNumber ?? '—'} />
-          </Section>
+          <TabsContent value="details" className="mt-6">
+            <div className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <Section title="Personal">
+                  <Field label="Interested In" value={p.interestedIn ?? '—'} />
+                  <Field label="Full Name" value={p.fullName ?? '—'} />
+                  <Field
+                    label="Contact"
+                    value={
+                      p.contactCountryCode && p.contactNumber
+                        ? `${p.contactCountryCode} ${p.contactNumber}`
+                        : '—'
+                    }
+                  />
+                  <Field
+                    label="Whatsapp"
+                    value={
+                      p.whatsappCountryCode && p.whatsappNumber
+                        ? `${p.whatsappCountryCode} ${p.whatsappNumber}`
+                        : '—'
+                    }
+                  />
+                </Section>
 
-          <Section title="Address" full>
-            <Field label="Address" value={p.address ?? '—'} />
-            <Field
-              label="City / State / Country"
-              value={[p.city, p.state, p.country].filter(Boolean).join(', ') || '—'}
-            />
-            <Field label="PIN Code" value={p.pinCode ?? '—'} />
-          </Section>
+                <Section title="Company">
+                  <Field label="Company Name" value={p.companyName ?? '—'} />
+                  <Field label="Type" value={p.companyType ?? '—'} />
+                  <Field label="Business Activity" value={p.businessActivity ?? '—'} />
+                  <Field label="GST" value={p.gst ?? '—'} />
+                  <Field label="PAN" value={p.pan ?? '—'} />
+                  <Field label="Designation" value={p.designation ?? '—'} />
+                  <Field label="Registered Email" value={p.registeredEmail ?? '—'} />
+                  <Field label="Secondary Number" value={p.secondaryNumber ?? '—'} />
+                </Section>
 
-          <Section title="Documents">
-            <FileLink label="PAN Card" file={p.panCardFile} />
-            <FileLink label="Proof of Address" file={p.proofOfAddressFile} />
-            <FileLink label="Cancelled Cheque" file={p.cancelledChequeFile} />
-            <FileLink label="Other" file={p.otherFile} />
-          </Section>
+                <Section title="Address" full>
+                  <Field label="Address" value={p.address ?? '—'} />
+                  <Field
+                    label="City / State / Country"
+                    value={[p.city, p.state, p.country].filter(Boolean).join(', ') || '—'}
+                  />
+                  <Field label="PIN Code" value={p.pinCode ?? '—'} />
+                </Section>
 
-          <Section title="Bank">
-            <Field label="Account Number" value={p.bankAccountNumber ?? '—'} />
-            <Field label="Bank Name" value={p.bankName ?? '—'} />
-            <Field label="IFSC" value={p.ifscCode ?? '—'} />
-          </Section>
+                <Section title="Documents">
+                  <FileLink label="PAN Card" file={p.panCardFile} />
+                  <FileLink label="Proof of Address" file={p.proofOfAddressFile} />
+                  <FileLink label="Cancelled Cheque" file={p.cancelledChequeFile} />
+                  <FileLink label="Other" file={p.otherFile} />
+                </Section>
 
-          <Section title="Terms">
-            <Field
-              label="Accepted At"
-              value={p.termsAcceptedAt ? new Date(p.termsAcceptedAt).toLocaleString() : '—'}
-            />
-            <Field label="Signatory" value={p.signatoryName ?? '—'} />
-            <Field label="Designation" value={p.signatoryDesignation ?? '—'} />
-            <Field label="Place" value={p.signatoryPlace ?? '—'} />
-            <Field
-              label="Date"
-              value={p.signatoryDate ? new Date(p.signatoryDate).toLocaleDateString() : '—'}
-            />
-          </Section>
+                <Section title="Bank">
+                  <Field label="Account Number" value={p.bankAccountNumber ?? '—'} />
+                  <Field label="Bank Name" value={p.bankName ?? '—'} />
+                  <Field label="IFSC" value={p.ifscCode ?? '—'} />
+                </Section>
 
-          <Section title="Subscription & Fee">
-            <Field label="Subscription" value={p.subscriptionType ?? '—'} />
-            <Field
-              label="Fee Status"
-              value={
-                fee
-                  ? `Paid${
-                      p.registrationFeePaidAt
-                        ? ` on ${new Date(p.registrationFeePaidAt).toLocaleDateString()}`
-                        : ''
-                    }`
-                  : 'Unpaid'
-              }
-            />
-            {p.registrationFeeNote && (
-              <Field label="Fee Note" value={p.registrationFeeNote} />
-            )}
-          </Section>
+                <Section title="Terms">
+                  <Field
+                    label="Accepted At"
+                    value={p.termsAcceptedAt ? new Date(p.termsAcceptedAt).toLocaleString() : '—'}
+                  />
+                  <Field label="Signatory" value={p.signatoryName ?? '—'} />
+                  <Field label="Designation" value={p.signatoryDesignation ?? '—'} />
+                  <Field label="Place" value={p.signatoryPlace ?? '—'} />
+                  <Field
+                    label="Date"
+                    value={p.signatoryDate ? new Date(p.signatoryDate).toLocaleDateString() : '—'}
+                  />
+                </Section>
 
-          <Section title="Workflow">
-            <Field label="Status" value={p.status} />
-            <Field
-              label="Submitted"
-              value={p.submittedAt ? new Date(p.submittedAt).toLocaleString() : '—'}
-            />
-            <Field
-              label="Approved"
-              value={p.approvedAt ? new Date(p.approvedAt).toLocaleString() : '—'}
-            />
-            <Field
-              label="Rejected"
-              value={p.rejectedAt ? new Date(p.rejectedAt).toLocaleString() : '—'}
-            />
-            {p.rejectionNote && <Field label="Rejection Note" value={p.rejectionNote} />}
-          </Section>
-        </div>
+                <Section title="Subscription & Fee">
+                  <Field label="Subscription" value={p.subscriptionType ?? '—'} />
+                  <Field
+                    label="Fee Status"
+                    value={
+                      fee
+                        ? `Paid${
+                            p.registrationFeePaidAt
+                              ? ` on ${new Date(p.registrationFeePaidAt).toLocaleDateString()}`
+                              : ''
+                          }`
+                        : 'Unpaid'
+                    }
+                  />
+                  {p.registrationFeeNote && (
+                    <Field label="Fee Note" value={p.registrationFeeNote} />
+                  )}
+                </Section>
 
-        <div id="wallet">
-          <BidderWalletSection profileId={p.id} />
-        </div>
+                <Section title="Workflow">
+                  <Field label="Status" value={p.status} />
+                  <Field
+                    label="Submitted"
+                    value={p.submittedAt ? new Date(p.submittedAt).toLocaleString() : '—'}
+                  />
+                  <Field
+                    label="Approved"
+                    value={p.approvedAt ? new Date(p.approvedAt).toLocaleString() : '—'}
+                  />
+                  <Field
+                    label="Rejected"
+                    value={p.rejectedAt ? new Date(p.rejectedAt).toLocaleString() : '—'}
+                  />
+                  {p.rejectionNote && <Field label="Rejection Note" value={p.rejectionNote} />}
+                </Section>
+              </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
-            <Button
-              variant="outline"
-              disabled={fee || markPaid.isPending}
-              onClick={() => setPaidOpen(true)}
-            >
-              {fee ? 'Fee already paid' : 'Mark fee paid'}
-            </Button>
-            <Button
-              disabled={
-                approve.isPending || p.status === 'approved' || p.status !== 'pending_approval' || !fee
-              }
-              onClick={() => approve.mutate()}
-            >
-              {approve.isPending ? 'Approving…' : 'Approve'}
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={reject.isPending || p.status === 'approved'}
-              onClick={() => setRejectOpen(true)}
-            >
-              Reject
-            </Button>
-          </CardContent>
-          {(markPaid.error || approve.error || reject.error) && (
-            <CardContent className="pt-0">
-              <p className="text-sm text-destructive">
-                {errMsg(markPaid.error ?? approve.error ?? reject.error)}
-              </p>
-            </CardContent>
-          )}
-        </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-3">
+                  <Button
+                    variant="outline"
+                    disabled={fee || markPaid.isPending}
+                    onClick={() => setPaidOpen(true)}
+                  >
+                    {fee ? 'Fee already paid' : 'Mark fee paid'}
+                  </Button>
+                  <Button
+                    disabled={
+                      approve.isPending ||
+                      p.status === 'approved' ||
+                      p.status !== 'pending_approval' ||
+                      !fee
+                    }
+                    onClick={() => approve.mutate()}
+                  >
+                    {approve.isPending ? 'Approving…' : 'Approve'}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    disabled={reject.isPending || p.status === 'approved'}
+                    onClick={() => setRejectOpen(true)}
+                  >
+                    Reject
+                  </Button>
+                </CardContent>
+                {(markPaid.error || approve.error || reject.error) && (
+                  <CardContent className="pt-0">
+                    <p className="text-sm text-destructive">
+                      {errMsg(markPaid.error ?? approve.error ?? reject.error)}
+                    </p>
+                  </CardContent>
+                )}
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="wallet" className="mt-6">
+            <BidderWalletSection profileId={p.id} />
+          </TabsContent>
+        </Tabs>
       </div>
 
       <Dialog open={paidOpen} onOpenChange={setPaidOpen}>

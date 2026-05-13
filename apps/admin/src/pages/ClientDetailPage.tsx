@@ -15,6 +15,8 @@ import {
   TabsTrigger,
 } from '@auction/ui';
 import { AppShell } from '../components/AppShell';
+import { ClientAuctionHistorySection } from '../components/ClientAuctionHistorySection';
+import { ClientEngagementsSection } from '../components/ClientEngagementsSection';
 import { ClientLocationsSection } from '../components/ClientLocationsSection';
 
 const inr = new Intl.NumberFormat('en-IN', {
@@ -29,7 +31,7 @@ const STAGGERING_LABEL: Record<string, string> = {
   subsequent_lots: 'Subsequent lots',
 };
 
-const TABS = ['details', 'locations'] as const;
+const TABS = ['details', 'locations', 'engagement', 'auctions'] as const;
 type TabId = (typeof TABS)[number];
 const isTabId = (v: string | null): v is TabId =>
   !!v && (TABS as readonly string[]).includes(v);
@@ -108,6 +110,8 @@ export function ClientDetailPage() {
           <TabsList>
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="locations">Locations &amp; contacts</TabsTrigger>
+            <TabsTrigger value="engagement">Engagement history</TabsTrigger>
+            <TabsTrigger value="auctions">Auction history</TabsTrigger>
           </TabsList>
 
           <TabsContent value="details" className="mt-6">
@@ -116,6 +120,14 @@ export function ClientDetailPage() {
 
           <TabsContent value="locations" className="mt-6">
             <ClientLocationsSection clientId={id} defaultCountry={c.country} />
+          </TabsContent>
+
+          <TabsContent value="engagement" className="mt-6">
+            <ClientEngagementsSection clientId={id} />
+          </TabsContent>
+
+          <TabsContent value="auctions" className="mt-6">
+            <ClientAuctionHistorySection clientId={id} />
           </TabsContent>
         </Tabs>
       </div>

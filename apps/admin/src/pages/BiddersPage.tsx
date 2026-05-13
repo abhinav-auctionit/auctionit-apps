@@ -26,11 +26,11 @@ import {
 import { AppShell } from '../components/AppShell';
 
 const STATUS_OPTIONS: Array<{ value: BidderStatus | 'all'; label: string }> = [
+  { value: 'all', label: 'All' },
   { value: 'pending_approval', label: 'Pending review' },
   { value: 'draft', label: 'In progress' },
   { value: 'approved', label: 'Approved' },
   { value: 'rejected', label: 'Rejected' },
-  { value: 'all', label: 'All' },
 ];
 
 const STATUS_BADGE: Record<BidderStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -42,7 +42,7 @@ const STATUS_BADGE: Record<BidderStatus, { label: string; variant: 'default' | '
 
 export function BiddersPage() {
   const api = useApiClient();
-  const [filter, setFilter] = useState<BidderStatus | 'all'>('pending_approval');
+  const [filter, setFilter] = useState<BidderStatus | 'all'>('all');
 
   const list = useQuery({
     queryKey: ['admin', 'bidder-profiles', filter],

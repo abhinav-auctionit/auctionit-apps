@@ -16,13 +16,22 @@ import type { UpdateAuctionDto } from './dto/update-auction.dto';
 import type { CreateLotDto } from './dto/create-lot.dto';
 import type { UpdateLotDto } from './dto/update-lot.dto';
 
+const LOCATION_SELECT = {
+  id: true,
+  name: true,
+  city: true,
+  state: true,
+} satisfies Prisma.ClientLocationSelect;
+
 const LIST_INCLUDE = {
   client: { select: { id: true, companyName: true, country: true } },
+  location: { select: LOCATION_SELECT },
   _count: { select: { lots: true } },
 } satisfies Prisma.AuctionInclude;
 
 const DETAIL_INCLUDE = {
   client: { select: { id: true, companyName: true, country: true } },
+  location: { select: LOCATION_SELECT },
   createdBy: { select: { id: true, name: true, email: true } },
   lots: {
     orderBy: { lotNo: 'asc' as const },
@@ -69,10 +78,20 @@ export class AuctionsService {
     if (!client.isActive) {
       throw new BadRequestException('client is inactive — reactivate before creating auctions');
     }
+    if (dto.locationId) {
+      const loc = await this.prisma.clientLocation.findUnique({
+        where: { id: dto.locationId },
+        select: { clientId: true },
+      });
+      if (!loc || loc.clientId !== dto.clientId) {
+        throw new BadRequestException('locationId: location does not belong to this client');
+      }
+    }
     try {
       return await this.prisma.auction.create({
         data: {
           clientId: dto.clientId,
+          locationId: dto.locationId ?? null,
           code: dto.code,
           name: dto.name,
           auctionType: dto.auctionType,
@@ -90,11 +109,21 @@ export class AuctionsService {
   }
 
   async update(id: string, dto: UpdateAuctionDto): Promise<Auction> {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
+    if (dto.locationId) {
+      const loc = await this.prisma.clientLocation.findUnique({
+        where: { id: dto.locationId },
+        select: { clientId: true },
+      });
+      if (!loc || loc.clientId !== existing.clientId) {
+        throw new BadRequestException('locationId: location does not belong to this client');
+      }
+    }
     try {
       return await this.prisma.auction.update({
         where: { id },
         data: {
+          ...(dto.locationId !== undefined ? { locationId: dto.locationId } : {}),
           ...(dto.code !== undefined ? { code: dto.code } : {}),
           ...(dto.name !== undefined ? { name: dto.name } : {}),
           ...(dto.auctionType !== undefined ? { auctionType: dto.auctionType } : {}),

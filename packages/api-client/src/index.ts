@@ -35,6 +35,10 @@ import type {
   ClientLocationUpdateInput,
   ClientContactCreateInput,
   ClientContactUpdateInput,
+  ClientEngagementCreateInput,
+  ClientEngagementUpdateInput,
+  EngagementMedium,
+  EngagementPurpose,
   OtherChargeType,
   StaggeringOfLots,
   AuctionStatus,
@@ -316,9 +320,28 @@ export type ClientLocationWithContacts = ClientLocation & {
   contacts: ClientContactPoint[];
 };
 
+export type ClientEngagement = {
+  id: string;
+  clientId: string;
+  happenedAt: string;
+  personName: string;
+  personRole: string | null;
+  purpose: EngagementPurpose;
+  medium: EngagementMedium;
+  comments: string;
+  createdById: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ClientEngagementWithUser = ClientEngagement & {
+  createdBy: { id: string; name: string; email: string } | null;
+};
+
 export type Auction = {
   id: string;
   clientId: string;
+  locationId: string | null;
   code: string;
   name: string;
   auctionType: AuctionType;
@@ -330,8 +353,16 @@ export type Auction = {
   updatedAt: string;
 };
 
+export type AuctionLocationSummary = {
+  id: string;
+  name: string;
+  city: string;
+  state: string;
+};
+
 export type AuctionListRow = Auction & {
   client: { id: string; companyName: string; country: string };
+  location: AuctionLocationSummary | null;
   _count: { lots: number };
 };
 
@@ -356,8 +387,40 @@ export type Lot = {
 
 export type AuctionDetail = Auction & {
   client: { id: string; companyName: string; country: string };
+  location: AuctionLocationSummary | null;
   createdBy: { id: string; name: string; email: string } | null;
   lots: Lot[];
+};
+
+export type AuctionHistoryRow = {
+  id: string;
+  code: string;
+  name: string;
+  status: AuctionStatus;
+  startAt: string | null;
+  location: AuctionLocationSummary | null;
+  totalQty: number;
+  qtyUom: string | null;
+  totalAmountCents: number;
+};
+
+export type AuctionHistoryStats = {
+  totalAuctions: number;
+  totalValueCents: number;
+  avgValueCents: number;
+  totalQty: number;
+  qtyUom: string | null;
+};
+
+export type AuctionHistoryUpcoming = AuctionHistoryRow & {
+  firstItemName: string | null;
+};
+
+export type AuctionHistoryResponse = {
+  stats: AuctionHistoryStats;
+  upcoming: AuctionHistoryUpcoming | null;
+  auctions: AuctionHistoryRow[];
+  locations: AuctionLocationSummary[];
 };
 
 export type AuctionInvitation = {
@@ -614,6 +677,32 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
           `/admin/clients/${id}/locations/${locationId}/contacts/${contactId}`,
           { method: 'DELETE' },
         ),
+
+      listEngagements: (id: string) =>
+        request<ClientEngagementWithUser[]>(baseUrl, `/admin/clients/${id}/engagements`),
+      createEngagement: (id: string, body: ClientEngagementCreateInput) =>
+        request<ClientEngagementWithUser>(
+          baseUrl,
+          `/admin/clients/${id}/engagements`,
+          json('POST', body),
+        ),
+      updateEngagement: (
+        id: string,
+        engagementId: string,
+        body: ClientEngagementUpdateInput,
+      ) =>
+        request<ClientEngagementWithUser>(
+          baseUrl,
+          `/admin/clients/${id}/engagements/${engagementId}`,
+          json('PATCH', body),
+        ),
+      deleteEngagement: (id: string, engagementId: string) =>
+        request<void>(baseUrl, `/admin/clients/${id}/engagements/${engagementId}`, {
+          method: 'DELETE',
+        }),
+
+      getAuctionHistory: (id: string) =>
+        request<AuctionHistoryResponse>(baseUrl, `/admin/clients/${id}/auction-history`),
     },
     adminAuctions: {
       list: (params: { clientId?: string; code?: string; status?: AuctionStatus } = {}) => {

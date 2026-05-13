@@ -149,3 +149,38 @@ export type ClientContactCreateInput = z.infer<typeof clientContactCreateSchema>
 
 export const clientContactUpdateSchema = clientContactCreateSchema.partial();
 export type ClientContactUpdateInput = z.infer<typeof clientContactUpdateSchema>;
+
+// -- Engagement history ------------------------------------------------------
+
+export const engagementPurposeSchema = z.enum([
+  'auction_follow_up',
+  'auction_debrief',
+  'complaint_escalation',
+  'invoice_query',
+  'general_check_in',
+  'other',
+]);
+export type EngagementPurpose = z.infer<typeof engagementPurposeSchema>;
+
+export const engagementMediumSchema = z.enum([
+  'phone_call',
+  'email',
+  'in_person',
+  'video_call',
+  'whatsapp',
+  'other',
+]);
+export type EngagementMedium = z.infer<typeof engagementMediumSchema>;
+
+export const clientEngagementCreateSchema = z.object({
+  happenedAt: z.string().datetime({ offset: true, message: 'Invalid date/time' }),
+  personName: trimmed(120, 'Person met'),
+  personRole: optTrimmed(120),
+  purpose: engagementPurposeSchema,
+  medium: engagementMediumSchema,
+  comments: trimmed(4000, 'Comments'),
+});
+export type ClientEngagementCreateInput = z.infer<typeof clientEngagementCreateSchema>;
+
+export const clientEngagementUpdateSchema = clientEngagementCreateSchema.partial();
+export type ClientEngagementUpdateInput = z.infer<typeof clientEngagementUpdateSchema>;

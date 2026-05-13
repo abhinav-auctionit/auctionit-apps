@@ -39,6 +39,7 @@ export function NewAuctionPage() {
   });
 
   const [clientId, setClientId] = useState('');
+  const [locationId, setLocationId] = useState<string>('');
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [auctionType, setAuctionType] = useState<AuctionType>('forward');
@@ -46,10 +47,17 @@ export function NewAuctionPage() {
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  const locations = useQuery({
+    queryKey: ['admin', 'client', clientId, 'locations'],
+    queryFn: () => api.adminClients.listLocations(clientId),
+    enabled: !!clientId,
+  });
+
   const create = useMutation({
     mutationFn: () =>
       api.adminAuctions.create({
         clientId,
+        locationId: locationId || null,
         code: code.trim(),
         name: name.trim(),
         auctionType,
@@ -104,7 +112,13 @@ export function NewAuctionPage() {
                 <Label htmlFor="client">
                   Client <span className="text-destructive">*</span>
                 </Label>
-                <Select value={clientId} onValueChange={setClientId}>
+                <Select
+                  value={clientId}
+                  onValueChange={(v) => {
+                    setClientId(v);
+                    setLocationId('');
+                  }}
+                >
                   <SelectTrigger id="client">
                     <SelectValue placeholder="Select the seller" />
                   </SelectTrigger>
@@ -123,6 +137,35 @@ export function NewAuctionPage() {
                     No clients onboarded yet. Create one under Clients › Onboard client.
                   </p>
                 )}
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="location">Location</Label>
+                <Select
+                  value={locationId}
+                  onValueChange={(v) => setLocationId(v === '__none__' ? '' : v)}
+                  disabled={!clientId}
+                >
+                  <SelectTrigger id="location">
+                    <SelectValue
+                      placeholder={
+                        !clientId
+                          ? 'Select a client first'
+                          : locations.data && locations.data.length === 0
+                            ? 'No locations on file — add under Client › Locations'
+                            : 'Optional — pick the plant or facility'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No specific location</SelectItem>
+                    {locations.data?.map((l) => (
+                      <SelectItem key={l.id} value={l.id}>
+                        {l.name} — {l.city}, {l.state}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
