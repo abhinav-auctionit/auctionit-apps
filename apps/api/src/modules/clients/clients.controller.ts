@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -21,6 +22,7 @@ import { ClientContactCreateDto } from './dto/client-contact-create.dto';
 import { ClientContactUpdateDto } from './dto/client-contact-update.dto';
 import { ClientEngagementCreateDto } from './dto/client-engagement-create.dto';
 import { ClientEngagementUpdateDto } from './dto/client-engagement-update.dto';
+import { InternalContactsUpdateDto } from './dto/internal-contacts-update.dto';
 
 @ApiTags('admin/clients')
 @Roles('admin')
@@ -112,6 +114,21 @@ export class ClientsAdminController {
   @Get(':id/auction-history')
   getAuctionHistory(@Param('id', ParseUUIDPipe) id: string) {
     return this.clients.getAuctionHistory(id);
+  }
+
+  // -- Internal contacts -----------------------------------------------------
+
+  @Get(':id/internal-contacts')
+  listInternalContacts(@Param('id', ParseUUIDPipe) id: string) {
+    return this.clients.listInternalContacts(id);
+  }
+
+  @Put(':id/internal-contacts')
+  setInternalContacts(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: InternalContactsUpdateDto,
+  ) {
+    return this.clients.setInternalContacts(id, dto);
   }
 
   // -- Engagements -----------------------------------------------------------

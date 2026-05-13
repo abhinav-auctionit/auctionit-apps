@@ -39,6 +39,8 @@ import type {
   ClientEngagementUpdateInput,
   EngagementMedium,
   EngagementPurpose,
+  InternalContactRole,
+  InternalContactsUpdateInput,
   OtherChargeType,
   StaggeringOfLots,
   AuctionStatus,
@@ -366,6 +368,17 @@ export type AuctionListRow = Auction & {
   _count: { lots: number };
 };
 
+export type LotItemRef = {
+  id: string;
+  name: string;
+  uom: Uom;
+  subcategory: {
+    id: string;
+    name: string;
+    category: { id: string; name: string };
+  };
+};
+
 export type Lot = {
   id: string;
   auctionId: string;
@@ -382,7 +395,7 @@ export type Lot = {
   bidIncrementCents: number;
   createdAt: string;
   updatedAt: string;
-  item?: { id: string; name: string; uom: Uom } | null;
+  item: LotItemRef | null;
 };
 
 export type AuctionDetail = Auction & {
@@ -421,6 +434,31 @@ export type AuctionHistoryResponse = {
   upcoming: AuctionHistoryUpcoming | null;
   auctions: AuctionHistoryRow[];
   locations: AuctionLocationSummary[];
+};
+
+export type AdminStaffMember = {
+  id: string;
+  name: string;
+  email: string;
+  mobileCountryCode: string | null;
+  mobileNumber: string | null;
+  createdAt: string;
+};
+
+export type InternalContactUserInfo = {
+  id: string;
+  name: string;
+  email: string;
+  mobileCountryCode: string | null;
+  mobileNumber: string | null;
+};
+
+export type ClientInternalContactAssignment = {
+  id: string;
+  role: InternalContactRole;
+  assignedAt: string;
+  user: InternalContactUserInfo;
+  kamClientCount: number | null;
 };
 
 export type AuctionInvitation = {
@@ -703,6 +741,21 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
 
       getAuctionHistory: (id: string) =>
         request<AuctionHistoryResponse>(baseUrl, `/admin/clients/${id}/auction-history`),
+
+      listInternalContacts: (id: string) =>
+        request<ClientInternalContactAssignment[]>(
+          baseUrl,
+          `/admin/clients/${id}/internal-contacts`,
+        ),
+      setInternalContacts: (id: string, body: InternalContactsUpdateInput) =>
+        request<ClientInternalContactAssignment[]>(
+          baseUrl,
+          `/admin/clients/${id}/internal-contacts`,
+          json('PUT', body),
+        ),
+    },
+    adminStaff: {
+      list: () => request<AdminStaffMember[]>(baseUrl, '/admin/staff'),
     },
     adminAuctions: {
       list: (params: { clientId?: string; code?: string; status?: AuctionStatus } = {}) => {

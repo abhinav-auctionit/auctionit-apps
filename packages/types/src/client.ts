@@ -184,3 +184,23 @@ export type ClientEngagementCreateInput = z.infer<typeof clientEngagementCreateS
 
 export const clientEngagementUpdateSchema = clientEngagementCreateSchema.partial();
 export type ClientEngagementUpdateInput = z.infer<typeof clientEngagementUpdateSchema>;
+
+// -- Internal contacts (KAMs etc.) -------------------------------------------
+
+export const internalContactRoleSchema = z.enum([
+  'kam',
+  'asst_kam',
+  'lifting_coordinator',
+  'catalog_ops',
+]);
+export type InternalContactRole = z.infer<typeof internalContactRoleSchema>;
+
+const userIdOrNull = z.string().uuid().nullable().optional();
+
+export const internalContactsUpdateSchema = z.object({
+  kam: userIdOrNull,
+  asstKam: userIdOrNull,
+  liftingCoordinator: userIdOrNull,
+  catalogOps: userIdOrNull,
+});
+export type InternalContactsUpdateInput = z.infer<typeof internalContactsUpdateSchema>;

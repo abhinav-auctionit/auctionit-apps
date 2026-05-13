@@ -189,6 +189,14 @@ export function AuctionDetailPage() {
                               {l.description}
                             </div>
                           )}
+                          {l.item && (
+                            <div className="mt-1">
+                              <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {l.item.subcategory.category.name} ›{' '}
+                                {l.item.subcategory.name}
+                              </span>
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-2 text-xs text-muted-foreground">
                           {new Date(l.auctionDate).toLocaleDateString()}
@@ -351,6 +359,9 @@ function StatusActions({
 // -- Lot dialog ----------------------------------------------------------
 
 type LotForm = {
+  itemId: string | null;
+  categoryId: string;
+  subcategoryId: string;
   itemName: string;
   description: string;
   qty: string;
@@ -365,6 +376,9 @@ type LotForm = {
 const initialLotForm = (): LotForm => {
   const today = new Date().toISOString().slice(0, 10);
   return {
+    itemId: null,
+    categoryId: '',
+    subcategoryId: '',
     itemName: '',
     description: '',
     qty: '',
@@ -378,6 +392,9 @@ const initialLotForm = (): LotForm => {
 };
 
 const lotToForm = (l: Lot): LotForm => ({
+  itemId: l.itemId,
+  categoryId: l.item?.subcategory.category.id ?? '',
+  subcategoryId: l.item?.subcategory.id ?? '',
   itemName: l.itemName,
   description: l.description ?? '',
   qty: l.qty,
@@ -415,6 +432,18 @@ function LotDialog({
   const [error, setError] = useState<string | null>(null);
   const set = <K extends keyof LotForm>(k: K, v: LotForm[K]) =>
     setF((prev) => ({ ...prev, [k]: v }));
+
+  const categories = useQuery({
+    queryKey: ['admin', 'categories-tree'],
+    queryFn: () => api.inventory.listCategories(),
+  });
+
+  const items = useQuery({
+    queryKey: ['admin', 'items', { subcategoryId: f.subcategoryId }],
+    queryFn: () =>
+      api.inventory.listItems({ subcategoryId: f.subcategoryId || undefined }),
+    enabled: !!f.subcategoryId,
+  });
 
   const create = useMutation({
     mutationFn: (input: CreateLotInput) => api.adminAuctions.addLot(auctionId, input),
@@ -456,6 +485,7 @@ function LotDialog({
     }
 
     const payload: CreateLotInput = {
+      itemId: f.itemId,
       itemName: f.itemName.trim(),
       description: f.description.trim() || null,
       qty,
@@ -485,6 +515,36 @@ function LotDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
+          <ItemPicker
+            categories={categories.data ?? []}
+            items={items.data ?? []}
+            itemsLoading={items.isLoading}
+            categoryId={f.categoryId}
+            subcategoryId={f.subcategoryId}
+            itemId={f.itemId}
+            onCategoryChange={(id) => {
+              set('categoryId', id);
+              set('subcategoryId', '');
+              set('itemId', null);
+            }}
+            onSubcategoryChange={(id) => {
+              set('subcategoryId', id);
+              set('itemId', null);
+            }}
+            onItemChange={(item) => {
+              if (!item) {
+                set('itemId', null);
+                return;
+              }
+              setF((prev) => ({
+                ...prev,
+                itemId: item.id,
+                itemName: item.name,
+                uom: item.uom,
+              }));
+            }}
+          />
+
           <div className="space-y-2">
             <Label htmlFor="itemName">
               Item name <span className="text-destructive">*</span>
@@ -496,6 +556,11 @@ function LotDialog({
               maxLength={255}
               required
             />
+            {f.itemId && (
+              <p className="text-xs text-muted-foreground">
+                Linked to inventory item. You can override the display name above.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -629,3 +694,124 @@ function LotDialog({
 
 // Used to give TypeScript a hint about the AuctionDetail type we operate on.
 export type _AuctionDetailFromApi = AuctionDetail;
+
+// -- Item picker -------------------------------------------------------------
+
+type CategoryTreeNode = {
+  id: string;
+  name: string;
+  subcategories: { id: string; name: string }[];
+};
+
+type ItemPickerOption = {
+  id: string;
+  name: string;
+  uom: Uom;
+};
+
+function ItemPicker({
+  categories,
+  items,
+  itemsLoading,
+  categoryId,
+  subcategoryId,
+  itemId,
+  onCategoryChange,
+  onSubcategoryChange,
+  onItemChange,
+}: {
+  categories: CategoryTreeNode[];
+  items: ItemPickerOption[];
+  itemsLoading: boolean;
+  categoryId: string;
+  subcategoryId: string;
+  itemId: string | null;
+  onCategoryChange: (id: string) => void;
+  onSubcategoryChange: (id: string) => void;
+  onItemChange: (item: ItemPickerOption | null) => void;
+}) {
+  const subOptions = categories.find((c) => c.id === categoryId)?.subcategories ?? [];
+  const noneValue = '__none__';
+
+  return (
+    <div className="space-y-2">
+      <Label>Inventory item</Label>
+      <p className="text-xs text-muted-foreground">
+        Pick from the catalog so the lot inherits the item's category and subcategory. Leave
+        empty for a one-off lot.
+      </p>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Select value={categoryId} onValueChange={onCategoryChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            {categories.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={subcategoryId}
+          onValueChange={onSubcategoryChange}
+          disabled={!categoryId}
+        >
+          <SelectTrigger>
+            <SelectValue
+              placeholder={
+                !categoryId
+                  ? 'Pick a category first'
+                  : subOptions.length === 0
+                    ? 'No subcategories'
+                    : 'Subcategory'
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {subOptions.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={itemId ?? noneValue}
+          onValueChange={(v) => {
+            if (v === noneValue) {
+              onItemChange(null);
+              return;
+            }
+            const picked = items.find((i) => i.id === v) ?? null;
+            onItemChange(picked);
+          }}
+          disabled={!subcategoryId}
+        >
+          <SelectTrigger>
+            <SelectValue
+              placeholder={
+                !subcategoryId
+                  ? 'Pick a subcategory first'
+                  : itemsLoading
+                    ? 'Loading…'
+                    : items.length === 0
+                      ? 'No items'
+                      : 'Item'
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={noneValue}>No item (free-text)</SelectItem>
+            {items.map((i) => (
+              <SelectItem key={i.id} value={i.id}>
+                {i.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}

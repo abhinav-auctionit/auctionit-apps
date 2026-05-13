@@ -164,6 +164,15 @@ enum EngagementMedium {
   @@map("engagement_medium")
 }
 
+enum ClientInternalContactRole {
+  kam
+  asst_kam
+  lifting_coordinator
+  catalog_ops
+
+  @@map("client_internal_contact_role")
+}
+
 model User {
   id                String   @id @default(uuid()) @db.Uuid
   email             String   @unique @db.VarChar(255)
@@ -183,6 +192,7 @@ model User {
   recordedWalletTxns WalletTransaction[] @relation("WalletTxnCreatedBy")
   invitedInvitations AuctionInvitation[] @relation("InvitedBy")
   loggedEngagements  ClientEngagement[]  @relation("EngagementLoggedBy")
+  clientAssignments  ClientInternalContact[]
 
   @@unique([mobileCountryCode, mobileNumber], map: "users_mobile_unique")
   @@map("users")
@@ -367,6 +377,7 @@ model Client {
   auctions  Auction[]
   locations ClientLocation[]
   engagements ClientEngagement[]
+  internalContacts ClientInternalContact[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -417,6 +428,24 @@ model ClientEngagement {
 
   @@index([clientId, happenedAt(sort: Desc)], map: "client_engagements_client_happened_idx")
   @@map("client_engagements")
+}
+
+model ClientInternalContact {
+  id         String                    @id @default(uuid()) @db.Uuid
+  clientId   String                    @map("client_id") @db.Uuid
+  userId     String                    @map("user_id") @db.Uuid
+  role       ClientInternalContactRole
+  assignedAt DateTime                  @default(now()) @map("assigned_at") @db.Timestamptz(6)
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([clientId, role], map: "client_internal_contacts_client_role_unique")
+  @@index([userId], map: "client_internal_contacts_user_idx")
+  @@map("client_internal_contacts")
 }
 
 model ClientContactPoint {

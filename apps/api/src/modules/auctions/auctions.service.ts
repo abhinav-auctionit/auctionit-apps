@@ -8,7 +8,6 @@ import {
   type AuctionStatus,
   Prisma,
   type Auction,
-  type Lot,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { CreateAuctionDto } from './dto/create-auction.dto';
@@ -29,15 +28,30 @@ const LIST_INCLUDE = {
   _count: { select: { lots: true } },
 } satisfies Prisma.AuctionInclude;
 
+const LOT_ITEM_SELECT = {
+  id: true,
+  name: true,
+  uom: true,
+  subcategory: {
+    select: {
+      id: true,
+      name: true,
+      category: { select: { id: true, name: true } },
+    },
+  },
+} satisfies Prisma.ItemSelect;
+
+const LOT_INCLUDE = {
+  item: { select: LOT_ITEM_SELECT },
+} satisfies Prisma.LotInclude;
+
 const DETAIL_INCLUDE = {
   client: { select: { id: true, companyName: true, country: true } },
   location: { select: LOCATION_SELECT },
   createdBy: { select: { id: true, name: true, email: true } },
   lots: {
     orderBy: { lotNo: 'asc' as const },
-    include: {
-      item: { select: { id: true, name: true, uom: true } },
-    },
+    include: LOT_INCLUDE,
   },
 } satisfies Prisma.AuctionInclude;
 
@@ -142,8 +156,12 @@ export class AuctionsService {
 
   // -- Lots ------------------------------------------------------------------
 
-  async addLot(auctionId: string, dto: CreateLotDto): Promise<Lot> {
-    const auction = await this.findOne(auctionId);
+  async addLot(auctionId: string, dto: CreateLotDto) {
+    const auction = await this.prisma.auction.findUnique({
+      where: { id: auctionId },
+      select: { status: true },
+    });
+    if (!auction) throw new NotFoundException('auction not found');
     if (auction.status === 'ended' || auction.status === 'cancelled') {
       throw new BadRequestException(`cannot add lots to ${auction.status} auction`);
     }
@@ -177,10 +195,11 @@ export class AuctionsService {
         startingPriceCents: dto.startingPriceCents,
         bidIncrementCents: dto.bidIncrementCents,
       },
+      include: LOT_INCLUDE,
     });
   }
 
-  async updateLot(auctionId: string, lotId: string, dto: UpdateLotDto): Promise<Lot> {
+  async updateLot(auctionId: string, lotId: string, dto: UpdateLotDto) {
     const lot = await this.prisma.lot.findUnique({ where: { id: lotId } });
     if (!lot || lot.auctionId !== auctionId) {
       throw new NotFoundException('lot not found in this auction');
@@ -210,6 +229,7 @@ export class AuctionsService {
           ? { bidIncrementCents: dto.bidIncrementCents }
           : {}),
       },
+      include: LOT_INCLUDE,
     });
   }
 

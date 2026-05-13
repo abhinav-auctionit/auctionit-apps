@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import {
   AuctionStatus,
+  ClientInternalContactRole,
   Prisma,
   type Client,
   type ClientContactPoint,
@@ -21,6 +22,7 @@ import type { ClientContactCreateDto } from './dto/client-contact-create.dto';
 import type { ClientContactUpdateDto } from './dto/client-contact-update.dto';
 import type { ClientEngagementCreateDto } from './dto/client-engagement-create.dto';
 import type { ClientEngagementUpdateDto } from './dto/client-engagement-update.dto';
+import type { InternalContactsUpdateDto } from './dto/internal-contacts-update.dto';
 
 const LOCATION_INCLUDE = {
   contacts: { orderBy: { createdAt: 'asc' as const } },
@@ -74,6 +76,30 @@ export type AuctionHistoryResponse = {
   upcoming: AuctionHistoryUpcoming | null;
   auctions: AuctionHistoryRow[];
   locations: AuctionLocationSummary[];
+};
+
+export type InternalContactAssignment = {
+  id: string;
+  role: ClientInternalContactRole;
+  assignedAt: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    mobileCountryCode: string | null;
+    mobileNumber: string | null;
+  };
+  kamClientCount: number | null;
+};
+
+const INTERNAL_CONTACT_ROLE_KEY: Record<
+  keyof InternalContactsUpdateDto,
+  ClientInternalContactRole
+> = {
+  kam: 'kam',
+  asstKam: 'asst_kam',
+  liftingCoordinator: 'lifting_coordinator',
+  catalogOps: 'catalog_ops',
 };
 
 @Injectable()
@@ -264,6 +290,87 @@ export class ClientsService {
   ): Promise<void> {
     await this.assertContactBelongs(clientId, locationId, contactId);
     await this.prisma.clientContactPoint.delete({ where: { id: contactId } });
+  }
+
+  // -- Internal contacts (KAMs etc.) -----------------------------------------
+
+  async listInternalContacts(clientId: string): Promise<InternalContactAssignment[]> {
+    await this.assertClientExists(clientId);
+    const rows = await this.prisma.clientInternalContact.findMany({
+      where: { clientId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            mobileCountryCode: true,
+            mobileNumber: true,
+          },
+        },
+      },
+    });
+
+    const kamUserIds = rows.filter((r) => r.role === 'kam').map((r) => r.userId);
+    const kamCounts = new Map<string, number>();
+    if (kamUserIds.length > 0) {
+      const grouped = await this.prisma.clientInternalContact.groupBy({
+        by: ['userId'],
+        where: { role: 'kam', userId: { in: kamUserIds } },
+        _count: { _all: true },
+      });
+      for (const g of grouped) kamCounts.set(g.userId, g._count._all);
+    }
+
+    return rows.map((r) => ({
+      id: r.id,
+      role: r.role,
+      assignedAt: r.assignedAt.toISOString(),
+      user: r.user,
+      kamClientCount: r.role === 'kam' ? kamCounts.get(r.userId) ?? 0 : null,
+    }));
+  }
+
+  async setInternalContacts(
+    clientId: string,
+    dto: InternalContactsUpdateDto,
+  ): Promise<InternalContactAssignment[]> {
+    await this.assertClientExists(clientId);
+
+    const userIds = Object.values(dto).filter((v): v is string => typeof v === 'string');
+    if (userIds.length > 0) {
+      const found = await this.prisma.user.findMany({
+        where: { id: { in: userIds }, role: 'admin' },
+        select: { id: true },
+      });
+      const foundIds = new Set(found.map((u) => u.id));
+      const missing = userIds.filter((id) => !foundIds.has(id));
+      if (missing.length > 0) {
+        throw new BadRequestException('one or more user ids are not admin users');
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const [formKey, dbRole] of Object.entries(INTERNAL_CONTACT_ROLE_KEY) as Array<
+        [keyof InternalContactsUpdateDto, ClientInternalContactRole]
+      >) {
+        const userId = dto[formKey];
+        if (userId === undefined) continue; // not in payload, leave alone
+        if (userId === null) {
+          await tx.clientInternalContact.deleteMany({
+            where: { clientId, role: dbRole },
+          });
+          continue;
+        }
+        await tx.clientInternalContact.upsert({
+          where: { clientId_role: { clientId, role: dbRole } },
+          create: { clientId, userId, role: dbRole },
+          update: { userId },
+        });
+      }
+    });
+
+    return this.listInternalContacts(clientId);
   }
 
   // -- Auction history -------------------------------------------------------
