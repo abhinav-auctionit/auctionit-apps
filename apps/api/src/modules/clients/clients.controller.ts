@@ -23,6 +23,7 @@ import { ClientContactUpdateDto } from './dto/client-contact-update.dto';
 import { ClientEngagementCreateDto } from './dto/client-engagement-create.dto';
 import { ClientEngagementUpdateDto } from './dto/client-engagement-update.dto';
 import { InternalContactsUpdateDto } from './dto/internal-contacts-update.dto';
+import { ClientConsolidatedEmdSettingDto } from './dto/client-consolidated-emd-setting.dto';
 
 @ApiTags('admin/clients')
 @Roles('admin')
@@ -43,6 +44,14 @@ export class ClientsAdminController {
   @Post()
   create(@Body() dto: ClientCreateDto, @CurrentUser() user: SafeUser) {
     return this.clients.create(dto, user.id);
+  }
+
+  @Patch(':id/consolidated-emd-setting')
+  setConsolidatedEmdSetting(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ClientConsolidatedEmdSettingDto,
+  ) {
+    return this.clients.setConsolidatedEmdSetting(id, dto.allowsConsolidatedEmd);
   }
 
   // -- Locations -------------------------------------------------------------

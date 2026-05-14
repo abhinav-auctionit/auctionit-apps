@@ -106,6 +106,17 @@ const INTERNAL_CONTACT_ROLE_KEY: Record<
 export class ClientsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async setConsolidatedEmdSetting(
+    clientId: string,
+    allowsConsolidatedEmd: boolean,
+  ): Promise<Client> {
+    await this.assertClientExists(clientId);
+    return this.prisma.client.update({
+      where: { id: clientId },
+      data: { allowsConsolidatedEmd },
+    });
+  }
+
   async list(): Promise<Client[]> {
     return this.prisma.client.findMany({
       orderBy: { createdAt: 'desc' },
@@ -159,6 +170,7 @@ export class ClientsService {
           plantTechPersonDetails: dto.plantTechPersonDetails ?? null,
           displayMaterialLocation: dto.displayMaterialLocation,
           displayPlantLocation: dto.displayPlantLocation,
+          allowsConsolidatedEmd: dto.allowsConsolidatedEmd,
           tncFileId: dto.tncFileId ?? null,
         },
       });

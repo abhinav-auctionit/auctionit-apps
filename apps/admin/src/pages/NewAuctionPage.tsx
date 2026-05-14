@@ -53,6 +53,9 @@ export function NewAuctionPage() {
     enabled: !!clientId,
   });
 
+  const selectedClient = clients.data?.find((c) => c.id === clientId);
+  const consolidatedAllowed = !!selectedClient?.allowsConsolidatedEmd;
+
   const create = useMutation({
     mutationFn: () => {
       const parsed = emd.trim() === '' ? null : Number(emd);
@@ -63,7 +66,12 @@ export function NewAuctionPage() {
         name: name.trim(),
         auctionType,
         consolidatedEmdAmount:
-          parsed != null && Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : null,
+          consolidatedAllowed &&
+          parsed != null &&
+          Number.isFinite(parsed) &&
+          parsed > 0
+            ? Math.round(parsed)
+            : null,
         description: description.trim() || null,
       });
     },
@@ -223,14 +231,23 @@ export function NewAuctionPage() {
                   type="number"
                   min={0}
                   step={1}
-                  value={emd}
+                  value={consolidatedAllowed ? emd : ''}
                   onChange={(e) => setEmd(e.target.value)}
-                  placeholder="Leave blank for lot-level EMD only"
+                  placeholder={
+                    !clientId
+                      ? 'Select a client first'
+                      : !consolidatedAllowed
+                        ? 'Not enabled for this client'
+                        : 'Leave blank for lot-level EMD only'
+                  }
+                  disabled={!consolidatedAllowed}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Optional. When set, a single deposit per bidder covers participation
-                  across all lots. Leave blank to run in lot-level mode where each lot
-                  has its own EMD (set per lot on the next page).
+                  {consolidatedAllowed
+                    ? 'Optional. When set, bidders can choose either lot-level or consolidated EMD at attach time. Leave blank to offer lot-level only.'
+                    : clientId
+                      ? "This client doesn't have consolidated EMD enabled. Edit the client to allow it."
+                      : 'Available only for clients with consolidated EMD enabled.'}
                 </p>
               </div>
             </CardContent>

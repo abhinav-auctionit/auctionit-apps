@@ -64,6 +64,7 @@ type FormState = {
   // Step 5
   displayMaterialLocation: boolean;
   displayPlantLocation: boolean;
+  allowsConsolidatedEmd: boolean;
   tncFile: StoredFile | null;
 };
 
@@ -93,6 +94,7 @@ const initialState = (): FormState => ({
   plantTechPersonDetails: '',
   displayMaterialLocation: false,
   displayPlantLocation: false,
+  allowsConsolidatedEmd: false,
   tncFile: null,
 });
 
@@ -135,6 +137,7 @@ const buildPayload = (s: FormState): unknown => ({
   plantTechPersonDetails: s.plantTechPersonDetails || undefined,
   displayMaterialLocation: s.displayMaterialLocation,
   displayPlantLocation: s.displayPlantLocation,
+  allowsConsolidatedEmd: s.allowsConsolidatedEmd,
   tncFileId: s.tncFile?.id ?? null,
 });
 
@@ -697,6 +700,23 @@ function TermsStep({ s, set, errors }: StepProps) {
             onCheckedChange={(c) => set('displayPlantLocation', c === true)}
           />
           <span className="text-sm">Display plant location</span>
+        </label>
+      </div>
+
+      <div className="rounded-md border border-muted p-3">
+        <label className="flex items-start gap-2">
+          <Checkbox
+            checked={s.allowsConsolidatedEmd}
+            onCheckedChange={(c) => set('allowsConsolidatedEmd', c === true)}
+          />
+          <div>
+            <span className="text-sm font-medium">Allow consolidated EMD</span>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              When enabled, this client's auctions can offer a consolidated EMD option
+              alongside lot-level EMD. Individual bidders can choose either mode at
+              attach time.
+            </p>
+          </div>
         </label>
       </div>
 

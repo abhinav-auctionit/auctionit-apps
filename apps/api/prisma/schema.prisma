@@ -377,6 +377,11 @@ model Client {
   displayMaterialLocation Boolean @default(false) @map("display_material_location")
   displayPlantLocation    Boolean @default(false) @map("display_plant_location")
 
+  // Whether auctions for this client can offer consolidated EMD as an
+  // option alongside lot-level EMD. When false, every attached bidder must
+  // use lot-level EMD.
+  allowsConsolidatedEmd Boolean @default(false) @map("allows_consolidated_emd")
+
   tncFileId String?     @map("tnc_file_id") @db.Uuid
   tncFile   StoredFile? @relation("ClientTnc", fields: [tncFileId], references: [id], onDelete: SetNull)
   auctions  Auction[]

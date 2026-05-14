@@ -9,7 +9,6 @@ import {
   type BidderSearchResult,
   type ParticipantBidder,
   type ParticipantLotRow,
-  type ParticipantsView,
 } from '@auction/api-client';
 import { useApiClient } from '@auction/auth';
 import {
@@ -39,13 +38,15 @@ const inr = new Intl.NumberFormat('en-IN', {
 const errMsg = (e: unknown) =>
   e instanceof ApiError ? e.message : e instanceof Error ? e.message : 'Action failed';
 
-type Mode = 'lot' | 'consolidated';
+// Per-attachment mode. Independent of any auction-level setting now —
+// the auction may offer both options.
+type AttachMode = 'lot' | 'consolidated';
 
 export function AuctionParticipantsSection({ auction }: { auction: AuctionDetail }) {
   const api = useApiClient();
   const qc = useQueryClient();
   const auctionId = auction.id;
-  const mode: Mode = auction.consolidatedEmdAmount === null ? 'lot' : 'consolidated';
+  const consolidatedAvailable = auction.consolidatedEmdAmount !== null;
   const canMutate = auction.status !== 'ended' && auction.status !== 'cancelled';
 
   const participants = useQuery({
@@ -67,13 +68,13 @@ export function AuctionParticipantsSection({ auction }: { auction: AuctionDetail
             Participants ({participants.data?.bidders.length ?? 0})
           </CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
-            {mode === 'consolidated' ? (
+            {consolidatedAvailable ? (
               <>
-                Consolidated mode · {inr.format(auction.consolidatedEmdAmount!)} held per
-                attached bidder
+                Consolidated EMD available: {inr.format(auction.consolidatedEmdAmount!)}
+                {' · '}bidders can pick either mode at attach time
               </>
             ) : (
-              <>Lot-level mode · each lot's EMD is held per attachment</>
+              <>Lot-level EMD only · each lot's EMD is held per attachment</>
             )}
           </p>
         </div>
@@ -98,9 +99,8 @@ export function AuctionParticipantsSection({ auction }: { auction: AuctionDetail
         {participants.data && participants.data.bidders.length > 0 && (
           <ParticipantsList
             auctionId={auctionId}
-            mode={mode}
             canMutate={canMutate}
-            data={participants.data}
+            bidders={participants.data.bidders}
             onChanged={invalidate}
           />
         )}
@@ -109,7 +109,7 @@ export function AuctionParticipantsSection({ auction }: { auction: AuctionDetail
       {attachOpen && (
         <AttachDialog
           auction={auction}
-          mode={mode}
+          consolidatedAvailable={consolidatedAvailable}
           onClose={() => setAttachOpen(false)}
           onAttached={() => {
             setAttachOpen(false);
@@ -123,15 +123,13 @@ export function AuctionParticipantsSection({ auction }: { auction: AuctionDetail
 
 function ParticipantsList({
   auctionId,
-  mode,
   canMutate,
-  data,
+  bidders,
   onChanged,
 }: {
   auctionId: string;
-  mode: Mode;
   canMutate: boolean;
-  data: ParticipantsView;
+  bidders: ParticipantBidder[];
   onChanged: () => void;
 }) {
   const api = useApiClient();
@@ -180,7 +178,7 @@ function ParticipantsList({
           </tr>
         </thead>
         <tbody>
-          {data.bidders.map((b) => {
+          {bidders.map((b) => {
             const isOpen = expanded.has(b.bidderProfileId);
             const anyBid = b.lots.some((l) => l.hasBid);
             return (
@@ -349,18 +347,19 @@ function ParticipantsList({
 
 function AttachDialog({
   auction,
-  mode,
+  consolidatedAvailable,
   onClose,
   onAttached,
 }: {
   auction: AuctionDetail;
-  mode: Mode;
+  consolidatedAvailable: boolean;
   onClose: () => void;
   onAttached: () => void;
 }) {
   const api = useApiClient();
   const [q, setQ] = useState('');
   const [picked, setPicked] = useState<BidderSearchResult | null>(null);
+  const [mode, setMode] = useState<AttachMode>('lot');
   const [lotIds, setLotIds] = useState<Set<string>>(new Set());
 
   const results = useQuery({
@@ -383,10 +382,7 @@ function AttachDialog({
       });
     },
     onSuccess: (result: AttachResult) => {
-      if (result.failures.length > 0) {
-        // Show failure to admin; don't close until they ack.
-        return;
-      }
+      if (result.failures.length > 0) return;
       onAttached();
     },
   });
@@ -426,17 +422,7 @@ function AttachDialog({
         <DialogHeader>
           <DialogTitle>Attach bidder</DialogTitle>
           <DialogDescription>
-            {mode === 'consolidated' ? (
-              <>
-                Holds{' '}
-                <strong>{inr.format(auction.consolidatedEmdAmount ?? 0)}</strong> from the
-                bidder's wallet and allows them to bid on every lot in the auction.
-              </>
-            ) : (
-              <>
-                Pick lots — the lot's EMD will be held from the bidder's wallet for each.
-              </>
-            )}
+            Search for an approved bidder, then choose how their EMD should be held.
           </DialogDescription>
         </DialogHeader>
 
@@ -487,33 +473,55 @@ function AttachDialog({
           )}
 
           {picked && (
-            <div className="rounded-md border bg-muted/30 p-3 text-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium">{picked.fullName}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {picked.companyName ?? picked.user.email}
+            <>
+              <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">{picked.fullName}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {picked.companyName ?? picked.user.email}
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => setPicked(null)}
+                  >
+                    Change
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="text-xs text-primary hover:underline"
-                  onClick={() => setPicked(null)}
-                >
-                  Change
-                </button>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Available balance:{' '}
+                  <span className={insufficient ? 'text-destructive' : ''}>
+                    {availableBalance != null ? inr.format(availableBalance) : '—'}
+                  </span>
+                  {' · '}EMD required: {inr.format(requiredAmount)}
+                </div>
               </div>
-              <div className="mt-2 text-xs text-muted-foreground">
-                Available balance:{' '}
-                <span className={insufficient ? 'text-destructive' : ''}>
-                  {availableBalance != null ? inr.format(availableBalance) : '—'}
-                </span>
-                {' · '}EMD required: {inr.format(requiredAmount)}
+
+              <div className="space-y-2">
+                <Label className="text-xs">EMD mode for this bidder</Label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <ModeOption
+                    selected={mode === 'lot'}
+                    onSelect={() => setMode('lot')}
+                    title="Lot-level"
+                    description="EMD is held per selected lot. Released individually if the bidder doesn't win that lot."
+                  />
+                  <ModeOption
+                    selected={mode === 'consolidated'}
+                    onSelect={() => setMode('consolidated')}
+                    title={`Consolidated · ${inr.format(auction.consolidatedEmdAmount ?? 0)}`}
+                    description="One deposit covers all lots. Refund computed after lifting/forfeit across the auction."
+                    disabled={!consolidatedAvailable}
+                    disabledReason="Not offered for this auction"
+                  />
+                </div>
               </div>
-            </div>
+            </>
           )}
 
-          {mode === 'lot' && picked && (
+          {picked && mode === 'lot' && (
             <div className="space-y-2">
               <Label className="text-xs">Lots</Label>
               <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2">
@@ -542,7 +550,7 @@ function AttachDialog({
           )}
           {result && result.failures.length === 0 && result.created > 0 && (
             <p className="text-sm text-emerald-700">
-              Attached {result.created} {result.created === 1 ? 'lot' : 'lots'}.
+              Attached {mode === 'consolidated' ? '1 bidder' : `${result.created} lot(s)`}.
             </p>
           )}
           {attach.error && (
@@ -567,6 +575,42 @@ function AttachDialog({
   );
 }
 
+function ModeOption({
+  selected,
+  onSelect,
+  title,
+  description,
+  disabled,
+  disabledReason,
+}: {
+  selected: boolean;
+  onSelect: () => void;
+  title: string;
+  description: string;
+  disabled?: boolean;
+  disabledReason?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => !disabled && onSelect()}
+      disabled={disabled}
+      className={`rounded-md border p-3 text-left transition-colors ${
+        disabled
+          ? 'opacity-50'
+          : selected
+            ? 'border-primary bg-primary/5'
+            : 'hover:bg-muted'
+      }`}
+    >
+      <div className="text-sm font-medium">{title}</div>
+      <div className="mt-1 text-xs text-muted-foreground">
+        {disabled ? disabledReason : description}
+      </div>
+    </button>
+  );
+}
+
 function FailureList({ failures }: { failures: AttachFailure[] }) {
   return (
     <ul className="space-y-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs">
@@ -578,4 +622,3 @@ function FailureList({ failures }: { failures: AttachFailure[] }) {
     </ul>
   );
 }
-

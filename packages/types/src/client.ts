@@ -61,6 +61,10 @@ export const clientCreateSchema = z
     // Step 5 — Display & T&C
     displayMaterialLocation: z.boolean().default(false),
     displayPlantLocation: z.boolean().default(false),
+    // When true, auctions for this client can carry a consolidatedEmdAmount
+    // and admins can attach bidders in consolidated mode. When false, every
+    // attachment must use lot-level EMD.
+    allowsConsolidatedEmd: z.boolean().default(false),
     tncFileId: z.string().uuid().nullable().optional(),
   })
   .superRefine((d, ctx) => {
@@ -114,6 +118,15 @@ export const clientCreateSchema = z
     }
   });
 export type ClientCreateInput = z.infer<typeof clientCreateSchema>;
+
+// Targeted toggle for the per-client consolidated-EMD feature flag. Admins
+// can flip this after onboarding without going through the whole client edit.
+export const clientConsolidatedEmdSettingSchema = z.object({
+  allowsConsolidatedEmd: z.boolean(),
+});
+export type ClientConsolidatedEmdSettingInput = z.infer<
+  typeof clientConsolidatedEmdSettingSchema
+>;
 
 // -- Locations & contact points ----------------------------------------------
 

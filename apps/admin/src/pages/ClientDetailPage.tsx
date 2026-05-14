@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, type ClientWithTnc, type StoredFile } from '@auction/api-client';
 import { useApiClient } from '@auction/auth';
 import {
@@ -9,6 +9,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Checkbox,
   Tabs,
   TabsContent,
   TabsList,
@@ -257,6 +258,10 @@ function DetailsTab({ client: c }: { client: ClientWithTnc }) {
           label="Plant location"
           value={c.displayPlantLocation ? 'Shown to bidders' : 'Hidden'}
         />
+        <Field
+          label="Consolidated EMD"
+          value={<ConsolidatedEmdToggle client={c} />}
+        />
       </Section>
 
       <Section title="Terms & Conditions" full>
@@ -323,4 +328,48 @@ function TncLink({ file }: { file: StoredFile | null }) {
 function absoluteUrl(url: string): string {
   if (/^https?:\/\//i.test(url)) return url;
   return `https://${url}`;
+}
+
+function ConsolidatedEmdToggle({ client }: { client: ClientWithTnc }) {
+  const api = useApiClient();
+  const qc = useQueryClient();
+  const mutate = useMutation({
+    mutationFn: (next: boolean) =>
+      api.adminClients.setConsolidatedEmdSetting(client.id, next),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'client', client.id] });
+      qc.invalidateQueries({ queryKey: ['admin', 'clients'] });
+    },
+  });
+  const checked = mutate.isPending
+    ? // While the request is in flight, show the *target* state so the UI feels responsive.
+      (mutate.variables as boolean)
+    : client.allowsConsolidatedEmd;
+  return (
+    <div className="flex items-start gap-2">
+      <Checkbox
+        checked={checked}
+        disabled={mutate.isPending}
+        onCheckedChange={(v) => mutate.mutate(v === true)}
+        aria-label="Allow consolidated EMD"
+      />
+      <div className="text-sm">
+        <div>
+          {checked
+            ? 'Enabled — auctions can offer the consolidated option'
+            : 'Disabled — only lot-level EMD'}
+          {mutate.isPending && (
+            <span className="ml-2 text-xs text-muted-foreground">saving…</span>
+          )}
+        </div>
+        {mutate.error && (
+          <p className="mt-1 text-xs text-destructive">
+            {mutate.error instanceof ApiError
+              ? mutate.error.message
+              : 'Failed to update'}
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }

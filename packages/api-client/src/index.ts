@@ -290,6 +290,7 @@ export type Client = {
   plantTechPersonDetails: string | null;
   displayMaterialLocation: boolean;
   displayPlantLocation: boolean;
+  allowsConsolidatedEmd: boolean;
   tncFileId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -455,7 +456,11 @@ export type ParticipantBidder = {
 };
 
 export type ParticipantsView = {
-  mode: 'lot' | 'consolidated' | 'empty';
+  // Whether this auction offers consolidated EMD as an option for bidders.
+  // True when Auction.consolidatedEmdAmount is non-null (which itself requires
+  // the client to allow consolidated EMD).
+  consolidatedAvailable: boolean;
+  consolidatedAmount: number | null;
   bidders: ParticipantBidder[];
 };
 
@@ -734,6 +739,12 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
       get: (id: string) => request<ClientWithTnc>(baseUrl, `/admin/clients/${id}`),
       create: (body: ClientCreateInput) =>
         request<Client>(baseUrl, '/admin/clients', json('POST', body)),
+      setConsolidatedEmdSetting: (id: string, allowsConsolidatedEmd: boolean) =>
+        request<Client>(
+          baseUrl,
+          `/admin/clients/${id}/consolidated-emd-setting`,
+          json('PATCH', { allowsConsolidatedEmd }),
+        ),
 
       listLocations: (id: string) =>
         request<ClientLocationWithContacts[]>(baseUrl, `/admin/clients/${id}/locations`),

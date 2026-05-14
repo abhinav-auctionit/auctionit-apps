@@ -86,7 +86,7 @@ export class AuctionsService {
   async create(dto: CreateAuctionDto, createdById: string): Promise<Auction> {
     const client = await this.prisma.client.findUnique({
       where: { id: dto.clientId },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, allowsConsolidatedEmd: true },
     });
     if (!client) throw new BadRequestException('clientId: client not found');
     if (!client.isActive) {
@@ -100,6 +100,15 @@ export class AuctionsService {
       if (!loc || loc.clientId !== dto.clientId) {
         throw new BadRequestException('locationId: location does not belong to this client');
       }
+    }
+    if (
+      dto.consolidatedEmdAmount !== undefined &&
+      dto.consolidatedEmdAmount !== null &&
+      !client.allowsConsolidatedEmd
+    ) {
+      throw new BadRequestException(
+        'consolidatedEmdAmount: client has not enabled consolidated EMD',
+      );
     }
     try {
       return await this.prisma.auction.create({
@@ -143,6 +152,17 @@ export class AuctionsService {
         throw new ConflictException(
           'cannot change consolidated EMD while bidders are attached; detach them first',
         );
+      }
+      if (dto.consolidatedEmdAmount !== null) {
+        const client = await this.prisma.client.findUnique({
+          where: { id: existing.clientId },
+          select: { allowsConsolidatedEmd: true },
+        });
+        if (!client?.allowsConsolidatedEmd) {
+          throw new BadRequestException(
+            'consolidatedEmdAmount: client has not enabled consolidated EMD',
+          );
+        }
       }
     }
     try {

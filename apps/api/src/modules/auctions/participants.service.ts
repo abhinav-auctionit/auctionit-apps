@@ -40,16 +40,11 @@ export class ParticipantsService {
   ): Promise<AttachResult> {
     const auction = await this.prisma.auction.findUnique({
       where: { id: auctionId },
-      select: { id: true, status: true, consolidatedEmdAmount: true },
+      select: { id: true, status: true },
     });
     if (!auction) throw new NotFoundException('auction not found');
     if (auction.status === 'ended' || auction.status === 'cancelled') {
       throw new ConflictException(`cannot attach to ${auction.status} auction`);
-    }
-    if (auction.consolidatedEmdAmount !== null) {
-      throw new BadRequestException(
-        'this auction runs in consolidated mode; use the consolidated attach endpoint',
-      );
     }
 
     const lots = await this.prisma.lot.findMany({
@@ -92,6 +87,19 @@ export class ParticipantsService {
       try {
         await this.prisma.$transaction(
           async (tx) => {
+            // A bidder can only be in ONE mode per auction. If they're already
+            // attached consolidated, refuse this lot-level attach.
+            const consolidated = await tx.auctionParticipation.findUnique({
+              where: {
+                auctionId_bidderProfileId: { auctionId, bidderProfileId },
+              },
+              select: { id: true },
+            });
+            if (consolidated) {
+              throw new ConflictException(
+                'bidder is already attached in consolidated mode — detach from auction first',
+              );
+            }
             for (const lot of lots) {
               const existing = await tx.lotParticipation.findUnique({
                 where: { lotId_bidderProfileId: { lotId: lot.id, bidderProfileId } },
@@ -171,7 +179,7 @@ export class ParticipantsService {
     }
     if (auction.consolidatedEmdAmount === null) {
       throw new BadRequestException(
-        'this auction runs in lot-level mode; use the lot attach endpoint',
+        'this auction does not offer consolidated EMD',
       );
     }
 
@@ -214,6 +222,21 @@ export class ParticipantsService {
             if (existing) {
               skippedExisting += 1;
               return;
+            }
+            // A bidder can only be in ONE mode per auction. If they already
+            // have any lot-level participation (non-zero held), refuse.
+            const lotLevel = await tx.lotParticipation.findFirst({
+              where: {
+                bidderProfileId,
+                lot: { auctionId },
+                emdHeldAmount: { gt: 0 },
+              },
+              select: { id: true },
+            });
+            if (lotLevel) {
+              throw new ConflictException(
+                'bidder is already attached in lot-level mode — detach from those lots first',
+              );
             }
             let holdTxnId: string | null = null;
             const consolidated = auction.consolidatedEmdAmount!;
@@ -529,15 +552,9 @@ export class ParticipantsService {
       }
     }
 
-    const mode: 'lot' | 'consolidated' | 'empty' =
-      auction.consolidatedEmdAmount !== null
-        ? 'consolidated'
-        : byBidder.size > 0
-          ? 'lot'
-          : 'empty';
-
     return {
-      mode,
+      consolidatedAvailable: auction.consolidatedEmdAmount !== null,
+      consolidatedAmount: auction.consolidatedEmdAmount,
       bidders: Array.from(byBidder.values()).sort((a, b) =>
         a.profile.fullName.localeCompare(b.profile.fullName),
       ),
