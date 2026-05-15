@@ -31,6 +31,7 @@ import type {
   WalletTxnKind,
   ClientCountry,
   ClientCreateInput,
+  ClientUpdateInput,
   ClientLocationCreateInput,
   ClientLocationUpdateInput,
   ClientContactCreateInput,
@@ -739,6 +740,8 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
       get: (id: string) => request<ClientWithTnc>(baseUrl, `/admin/clients/${id}`),
       create: (body: ClientCreateInput) =>
         request<Client>(baseUrl, '/admin/clients', json('POST', body)),
+      update: (id: string, body: ClientUpdateInput) =>
+        request<Client>(baseUrl, `/admin/clients/${id}`, json('PATCH', body)),
       setConsolidatedEmdSetting: (id: string, allowsConsolidatedEmd: boolean) =>
         request<Client>(
           baseUrl,

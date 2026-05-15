@@ -12,7 +12,7 @@ import type { OtpChallenge, OtpChannel } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AppConfig } from '../../config/app-config.service';
 import { SMS_SERVICE, type SmsService } from '../sms/sms.service';
-import { hashPassword, verifyPassword } from './password';
+import { hashPassword, verifyArgon2 } from './password';
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const VERIFICATION_TTL_MS = 15 * 60 * 1000;
@@ -104,7 +104,7 @@ export class OtpService {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
-    const ok = await verifyPassword(challenge.codeHash, input.code);
+    const ok = await verifyArgon2(challenge.codeHash, input.code);
     if (!ok) {
       await this.prisma.otpChallenge.update({
         where: { id: challenge.id },

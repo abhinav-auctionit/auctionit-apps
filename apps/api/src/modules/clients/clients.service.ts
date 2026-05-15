@@ -16,6 +16,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { ClientCreateDto } from './dto/client-create.dto';
+import type { ClientUpdateDto } from './dto/client-update.dto';
 import type { ClientLocationCreateDto } from './dto/client-location-create.dto';
 import type { ClientLocationUpdateDto } from './dto/client-location-update.dto';
 import type { ClientContactCreateDto } from './dto/client-contact-create.dto';
@@ -131,6 +132,55 @@ export class ClientsService {
     });
     if (!row) throw new NotFoundException('client not found');
     return row;
+  }
+
+  async update(id: string, dto: ClientUpdateDto): Promise<Client> {
+    await this.assertClientExists(id);
+    try {
+      return await this.prisma.client.update({
+        where: { id },
+        data: {
+          companyName: dto.companyName,
+          phone: dto.phone ?? null,
+          websiteUrl: dto.websiteUrl ?? null,
+          registeredAddress: dto.registeredAddress,
+          country: dto.country,
+          pan: dto.pan,
+          tan: dto.tan,
+          tin: dto.tin,
+          isActive: dto.isActive,
+          prefixAuctionCode: dto.prefixAuctionCode ?? null,
+          suffixAuctionCode: dto.suffixAuctionCode ?? null,
+          autoExtend: dto.autoExtend,
+          extendIfLastBidSec: dto.autoExtend ? dto.extendIfLastBidSec ?? null : null,
+          extendDurationSec: dto.autoExtend ? dto.extendDurationSec ?? null : null,
+          extensionMaxTimes: dto.autoExtend ? dto.extensionMaxTimes ?? null : null,
+          staggeringOfLots: dto.staggeringOfLots ?? null,
+          staggeringOfLotsDurationSec:
+            dto.staggeringOfLots && dto.staggeringOfLots !== 'none'
+              ? dto.staggeringOfLotsDurationSec ?? null
+              : null,
+          staggeringOfAuction: dto.staggeringOfAuction ?? null,
+          staggeringOfAuctionDurationSec: dto.staggeringOfAuction
+            ? dto.staggeringOfAuctionDurationSec ?? null
+            : null,
+          otherChargeType: dto.otherChargeType ?? null,
+          otherChargeAmount: dto.otherChargeType ? dto.otherChargeAmount ?? null : null,
+          revenueRate: dto.revenueRate,
+          plantTechPersonDetails: dto.plantTechPersonDetails ?? null,
+          displayMaterialLocation: dto.displayMaterialLocation,
+          displayPlantLocation: dto.displayPlantLocation,
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        throw new ConflictException('a client with this PAN already exists');
+      }
+      throw err;
+    }
   }
 
   async create(dto: ClientCreateDto, createdById: string): Promise<Client> {

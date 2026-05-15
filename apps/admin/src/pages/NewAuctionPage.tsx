@@ -40,7 +40,7 @@ export function NewAuctionPage() {
 
   const [clientId, setClientId] = useState('');
   const [locationId, setLocationId] = useState<string>('');
-  const [code, setCode] = useState('');
+  const [codeMiddle, setCodeMiddle] = useState('');
   const [name, setName] = useState('');
   const [auctionType, setAuctionType] = useState<AuctionType>('forward');
   const [emd, setEmd] = useState('');
@@ -55,6 +55,10 @@ export function NewAuctionPage() {
 
   const selectedClient = clients.data?.find((c) => c.id === clientId);
   const consolidatedAllowed = !!selectedClient?.allowsConsolidatedEmd;
+  const codePrefix = selectedClient?.prefixAuctionCode ?? '';
+  const codeSuffix = selectedClient?.suffixAuctionCode ?? '';
+  const middleMaxLen = Math.max(0, 64 - codePrefix.length - codeSuffix.length);
+  const fullCode = `${codePrefix}${codeMiddle.trim()}${codeSuffix}`;
 
   const create = useMutation({
     mutationFn: () => {
@@ -62,7 +66,7 @@ export function NewAuctionPage() {
       return api.adminAuctions.create({
         clientId,
         locationId: locationId || null,
-        code: code.trim(),
+        code: fullCode,
         name: name.trim(),
         auctionType,
         consolidatedEmdAmount:
@@ -89,7 +93,7 @@ export function NewAuctionPage() {
       setError('Pick a client.');
       return;
     }
-    if (!code.trim() || !name.trim()) {
+    if (!codeMiddle.trim() || !name.trim()) {
       setError('Code and name are required.');
       return;
     }
@@ -128,6 +132,7 @@ export function NewAuctionPage() {
                   onValueChange={(v) => {
                     setClientId(v);
                     setLocationId('');
+                    setCodeMiddle('');
                   }}
                 >
                   <SelectTrigger id="client">
@@ -183,15 +188,42 @@ export function NewAuctionPage() {
                 <Label htmlFor="code">
                   Auction code <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  id="code"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  maxLength={64}
-                  placeholder="e.g. JSW-2026-001"
-                  className="font-mono"
-                  required
-                />
+                <div className="flex items-stretch rounded-md border border-input bg-background font-mono text-sm shadow-sm transition-colors focus-within:ring-1 focus-within:ring-ring">
+                  {codePrefix && (
+                    <span
+                      className="flex select-none items-center whitespace-pre rounded-l-md border-r border-input bg-muted px-3 text-muted-foreground"
+                      title="From client settings"
+                    >
+                      {codePrefix}
+                    </span>
+                  )}
+                  <Input
+                    id="code"
+                    value={codeMiddle}
+                    onChange={(e) => setCodeMiddle(e.target.value)}
+                    maxLength={middleMaxLen}
+                    placeholder={codePrefix || codeSuffix ? '001' : 'e.g. JSW-2026-001'}
+                    className="flex-1 rounded-none border-0 bg-transparent font-mono shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                    required
+                    disabled={!clientId}
+                  />
+                  {codeSuffix && (
+                    <span
+                      className="flex select-none items-center whitespace-pre rounded-r-md border-l border-input bg-muted px-3 text-muted-foreground"
+                      title="From client settings"
+                    >
+                      {codeSuffix}
+                    </span>
+                  )}
+                </div>
+                {clientId && (codePrefix || codeSuffix) && (
+                  <p className="text-xs text-muted-foreground">
+                    Final code: <span className="font-mono">{fullCode || '…'}</span>
+                  </p>
+                )}
+                {!clientId && (
+                  <p className="text-xs text-muted-foreground">Select a client first.</p>
+                )}
               </div>
 
               <div className="space-y-2">

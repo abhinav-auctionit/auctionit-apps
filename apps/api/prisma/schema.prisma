@@ -15,6 +15,13 @@ enum UserRole {
   @@map("user_role")
 }
 
+enum PasswordHashAlgo {
+  argon2
+  md5
+
+  @@map("password_hash_algo")
+}
+
 enum AuctionStatus {
   draft
   scheduled
@@ -175,27 +182,28 @@ enum ClientInternalContactRole {
 }
 
 model User {
-  id                String   @id @default(uuid()) @db.Uuid
-  email             String   @unique @db.VarChar(255)
-  name              String   @db.VarChar(255)
-  passwordHash      String   @map("password_hash") @db.VarChar(255)
-  mobileCountryCode String?  @map("mobile_country_code") @db.VarChar(8)
-  mobileNumber      String?  @map("mobile_number") @db.VarChar(20)
-  role              UserRole @default(bidder)
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                String           @id @default(uuid()) @db.Uuid
+  email             String           @unique @db.VarChar(255)
+  name              String           @db.VarChar(255)
+  passwordHash      String           @map("password_hash") @db.VarChar(255)
+  passwordHashAlgo  PasswordHashAlgo @default(argon2) @map("password_hash_algo")
+  mobileCountryCode String?          @map("mobile_country_code") @db.VarChar(8)
+  mobileNumber      String?          @map("mobile_number") @db.VarChar(20)
+  role              UserRole         @default(bidder)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  sessions           Session[]
-  createdAuctions    Auction[]           @relation("AuctionCreatedBy")
-  bids               Bid[]
-  uploadedFiles      StoredFile[]
-  bidderProfile      BidderProfile?
-  recordedWalletTxns WalletTransaction[] @relation("WalletTxnCreatedBy")
-  loggedEngagements  ClientEngagement[]  @relation("EngagementLoggedBy")
-  clientAssignments  ClientInternalContact[]
-  wonLots            Lot[]               @relation("LotWinner")
-  attachedLotParticipations     LotParticipation[]     @relation("LotParticipationAttachedBy")
-  attachedAuctionParticipations AuctionParticipation[] @relation("AuctionParticipationAttachedBy")
+  sessions                      Session[]
+  createdAuctions               Auction[]               @relation("AuctionCreatedBy")
+  bids                          Bid[]
+  uploadedFiles                 StoredFile[]
+  bidderProfile                 BidderProfile?
+  recordedWalletTxns            WalletTransaction[]     @relation("WalletTxnCreatedBy")
+  loggedEngagements             ClientEngagement[]      @relation("EngagementLoggedBy")
+  clientAssignments             ClientInternalContact[]
+  wonLots                       Lot[]                   @relation("LotWinner")
+  attachedLotParticipations     LotParticipation[]      @relation("LotParticipationAttachedBy")
+  attachedAuctionParticipations AuctionParticipation[]  @relation("AuctionParticipationAttachedBy")
 
   @@unique([mobileCountryCode, mobileNumber], map: "users_mobile_unique")
   @@map("users")
@@ -382,11 +390,11 @@ model Client {
   // use lot-level EMD.
   allowsConsolidatedEmd Boolean @default(false) @map("allows_consolidated_emd")
 
-  tncFileId String?     @map("tnc_file_id") @db.Uuid
-  tncFile   StoredFile? @relation("ClientTnc", fields: [tncFileId], references: [id], onDelete: SetNull)
-  auctions  Auction[]
-  locations ClientLocation[]
-  engagements ClientEngagement[]
+  tncFileId        String?                 @map("tnc_file_id") @db.Uuid
+  tncFile          StoredFile?             @relation("ClientTnc", fields: [tncFileId], references: [id], onDelete: SetNull)
+  auctions         Auction[]
+  locations        ClientLocation[]
+  engagements      ClientEngagement[]
   internalContacts ClientInternalContact[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -398,17 +406,17 @@ model Client {
 }
 
 model ClientLocation {
-  id        String  @id @default(uuid()) @db.Uuid
-  clientId  String  @map("client_id") @db.Uuid
-  name      String  @db.VarChar(120)
+  id          String  @id @default(uuid()) @db.Uuid
+  clientId    String  @map("client_id") @db.Uuid
+  name        String  @db.VarChar(120)
   addressLine String? @map("address_line") @db.VarChar(255)
-  city      String  @db.VarChar(80)
-  state     String  @db.VarChar(80)
-  pincode   String  @db.VarChar(15)
-  country   String  @db.VarChar(64)
-  isPrimary Boolean @default(false) @map("is_primary")
+  city        String  @db.VarChar(80)
+  state       String  @db.VarChar(80)
+  pincode     String  @db.VarChar(15)
+  country     String  @db.VarChar(64)
+  isPrimary   Boolean @default(false) @map("is_primary")
 
-  client   Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client   Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
   contacts ClientContactPoint[]
   auctions Auction[]
 
@@ -459,12 +467,12 @@ model ClientInternalContact {
 }
 
 model ClientContactPoint {
-  id          String  @id @default(uuid()) @db.Uuid
-  locationId  String  @map("location_id") @db.Uuid
-  name        String  @db.VarChar(120)
-  role        String? @db.VarChar(120)
-  email       String? @db.VarChar(255)
-  phone       String? @db.VarChar(30)
+  id         String  @id @default(uuid()) @db.Uuid
+  locationId String  @map("location_id") @db.Uuid
+  name       String  @db.VarChar(120)
+  role       String? @db.VarChar(120)
+  email      String? @db.VarChar(255)
+  phone      String? @db.VarChar(30)
 
   location ClientLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
 

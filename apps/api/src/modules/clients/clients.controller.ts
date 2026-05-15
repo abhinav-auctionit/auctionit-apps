@@ -16,6 +16,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import type { SafeUser } from '../auth/session.service';
 import { ClientsService } from './clients.service';
 import { ClientCreateDto } from './dto/client-create.dto';
+import { ClientUpdateDto } from './dto/client-update.dto';
 import { ClientLocationCreateDto } from './dto/client-location-create.dto';
 import { ClientLocationUpdateDto } from './dto/client-location-update.dto';
 import { ClientContactCreateDto } from './dto/client-contact-create.dto';
@@ -44,6 +45,11 @@ export class ClientsAdminController {
   @Post()
   create(@Body() dto: ClientCreateDto, @CurrentUser() user: SafeUser) {
     return this.clients.create(dto, user.id);
+  }
+
+  @Patch(':id')
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ClientUpdateDto) {
+    return this.clients.update(id, dto);
   }
 
   @Patch(':id/consolidated-emd-setting')

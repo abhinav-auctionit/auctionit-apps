@@ -3,7 +3,7 @@ import type { Session, User } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AppConfig } from '../../config/app-config.service';
 
-export type SafeUser = Omit<User, 'passwordHash'>;
+export type SafeUser = Omit<User, 'passwordHash' | 'passwordHashAlgo'>;
 export type SessionWithUser = Session & { user: SafeUser };
 
 const TOUCH_THROTTLE_MS = 5 * 60 * 1000;
@@ -42,7 +42,11 @@ export class SessionService {
       include: { user: true },
     });
     if (!row) return null;
-    const { passwordHash: _ignored, ...user } = row.user;
+    const {
+      passwordHash: _ignoredHash,
+      passwordHashAlgo: _ignoredAlgo,
+      ...user
+    } = row.user;
     return { ...row, user };
   }
 

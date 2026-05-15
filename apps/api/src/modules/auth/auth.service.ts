@@ -39,7 +39,11 @@ export class AuthService {
         role: dto.role,
       },
     });
-    const { passwordHash: _ignored, ...user } = row;
+    const {
+      passwordHash: _ignoredHash,
+      passwordHashAlgo: _ignoredAlgo,
+      ...user
+    } = row;
     return user;
   }
 
@@ -47,17 +51,40 @@ export class AuthService {
     const row = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (!row) throw new UnauthorizedException('invalid credentials');
 
-    const ok = await verifyPassword(row.passwordHash, dto.password);
+    const ok = await verifyPassword(row.passwordHash, dto.password, row.passwordHashAlgo);
     if (!ok) throw new UnauthorizedException('invalid credentials');
 
-    const { passwordHash: _ignored, ...user } = row;
+    // Lazy-upgrade legacy MD5 hashes the moment we see a valid login: we have
+    // the plaintext in memory exactly once, so this is our chance to rehash.
+    // Best-effort — a failure here must not break the login.
+    if (row.passwordHashAlgo === 'md5') {
+      try {
+        const upgraded = await hashPassword(dto.password);
+        await this.prisma.user.update({
+          where: { id: row.id },
+          data: { passwordHash: upgraded, passwordHashAlgo: 'argon2' },
+        });
+      } catch {
+        // swallow — the user is logged in; we'll retry on next login
+      }
+    }
+
+    const {
+      passwordHash: _ignoredHash,
+      passwordHashAlgo: _ignoredAlgo,
+      ...user
+    } = row;
     return user;
   }
 
   async findUserByEmailForOtp(email: string): Promise<SafeUser | null> {
     const row = await this.prisma.user.findUnique({ where: { email } });
     if (!row) return null;
-    const { passwordHash: _ignored, ...user } = row;
+    const {
+      passwordHash: _ignoredHash,
+      passwordHashAlgo: _ignoredAlgo,
+      ...user
+    } = row;
     return user;
   }
 
@@ -69,7 +96,11 @@ export class AuthService {
       where: { mobileCountryCode: countryCode, mobileNumber: number },
     });
     if (!row) return null;
-    const { passwordHash: _ignored, ...user } = row;
+    const {
+      passwordHash: _ignoredHash,
+      passwordHashAlgo: _ignoredAlgo,
+      ...user
+    } = row;
     return user;
   }
 
@@ -112,7 +143,11 @@ export class AuthService {
         },
       },
     });
-    const { passwordHash: _ignored, ...user } = row;
+    const {
+      passwordHash: _ignoredHash,
+      passwordHashAlgo: _ignoredAlgo,
+      ...user
+    } = row;
     return user;
   }
 }

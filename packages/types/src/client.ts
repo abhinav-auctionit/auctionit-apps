@@ -23,101 +23,127 @@ const optTrimmed = (max: number) =>
 const positiveInt = (label: string) =>
   z.number().int().nonnegative(`${label} must be 0 or greater`);
 
+const clientEditableFields = {
+  // Step 1 — Company
+  companyName: trimmed(100, 'Company name'),
+  phone: optTrimmed(20),
+  websiteUrl: optTrimmed(100),
+  registeredAddress: trimmed(500, 'Registered address'),
+  country: clientCountrySchema,
+
+  // Step 2 — Tax & status
+  pan: trimmed(10, 'PAN').toUpperCase(),
+  tan: trimmed(10, 'TAN').toUpperCase(),
+  tin: trimmed(15, 'TIN').toUpperCase(),
+  isActive: z.boolean().default(true),
+
+  // Step 3 — Auction config
+  prefixAuctionCode: optTrimmed(25),
+  suffixAuctionCode: optTrimmed(25),
+  autoExtend: z.boolean().default(false),
+  extendIfLastBidSec: positiveInt('Extend if last bid').nullable().optional(),
+  extendDurationSec: positiveInt('Extend duration').nullable().optional(),
+  extensionMaxTimes: positiveInt('Extension count').nullable().optional(),
+  staggeringOfLots: staggeringOfLotsSchema.nullable().optional(),
+  staggeringOfLotsDurationSec: positiveInt('Lot stagger duration').nullable().optional(),
+  staggeringOfAuction: z.boolean().nullable().optional(),
+  staggeringOfAuctionDurationSec: positiveInt('Auction stagger duration')
+    .nullable()
+    .optional(),
+
+  // Step 4 — Charges & revenue
+  otherChargeType: otherChargeTypeSchema.nullable().optional(),
+  otherChargeAmount: positiveInt('Other charge amount').nullable().optional(),
+  revenueRate: positiveInt('Revenue rate'),
+  plantTechPersonDetails: optTrimmed(200),
+
+  // Step 5 — Display
+  displayMaterialLocation: z.boolean().default(false),
+  displayPlantLocation: z.boolean().default(false),
+};
+
+type ClientEditableShape = {
+  autoExtend: boolean;
+  extendIfLastBidSec?: number | null;
+  extendDurationSec?: number | null;
+  extensionMaxTimes?: number | null;
+  staggeringOfLots?: StaggeringOfLots | null;
+  staggeringOfLotsDurationSec?: number | null;
+  staggeringOfAuction?: boolean | null;
+  staggeringOfAuctionDurationSec?: number | null;
+  otherChargeType?: OtherChargeType | null;
+  otherChargeAmount?: number | null;
+};
+
+const clientCrossFieldRefine = (d: ClientEditableShape, ctx: z.RefinementCtx) => {
+  if (d.autoExtend) {
+    if (d.extendIfLastBidSec == null) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['extendIfLastBidSec'],
+        message: 'required when auto-extend is on',
+      });
+    }
+    if (d.extendDurationSec == null) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['extendDurationSec'],
+        message: 'required when auto-extend is on',
+      });
+    }
+    if (d.extensionMaxTimes == null) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['extensionMaxTimes'],
+        message: 'required when auto-extend is on',
+      });
+    }
+  }
+  if (
+    d.staggeringOfLots &&
+    d.staggeringOfLots !== 'none' &&
+    d.staggeringOfLotsDurationSec == null
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['staggeringOfLotsDurationSec'],
+      message: 'required when staggering of lots is enabled',
+    });
+  }
+  if (d.staggeringOfAuction && d.staggeringOfAuctionDurationSec == null) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['staggeringOfAuctionDurationSec'],
+      message: 'required when staggering of auctions is enabled',
+    });
+  }
+  if (d.otherChargeType && d.otherChargeAmount == null) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['otherChargeAmount'],
+      message: 'required when other-charge type is set',
+    });
+  }
+};
+
 export const clientCreateSchema = z
   .object({
-    // Step 1 — Company
-    companyName: trimmed(100, 'Company name'),
-    phone: optTrimmed(20),
-    websiteUrl: optTrimmed(100),
-    registeredAddress: trimmed(500, 'Registered address'),
-    country: clientCountrySchema,
-
-    // Step 2 — Tax & status
-    pan: trimmed(10, 'PAN').toUpperCase(),
-    tan: trimmed(10, 'TAN').toUpperCase(),
-    tin: trimmed(15, 'TIN').toUpperCase(),
-    isActive: z.boolean().default(true),
-
-    // Step 3 — Auction config
-    prefixAuctionCode: optTrimmed(25),
-    suffixAuctionCode: optTrimmed(25),
-    autoExtend: z.boolean().default(false),
-    extendIfLastBidSec: positiveInt('Extend if last bid').nullable().optional(),
-    extendDurationSec: positiveInt('Extend duration').nullable().optional(),
-    extensionMaxTimes: positiveInt('Extension count').nullable().optional(),
-    staggeringOfLots: staggeringOfLotsSchema.nullable().optional(),
-    staggeringOfLotsDurationSec: positiveInt('Lot stagger duration').nullable().optional(),
-    staggeringOfAuction: z.boolean().nullable().optional(),
-    staggeringOfAuctionDurationSec: positiveInt('Auction stagger duration')
-      .nullable()
-      .optional(),
-
-    // Step 4 — Charges & revenue
-    otherChargeType: otherChargeTypeSchema.nullable().optional(),
-    otherChargeAmount: positiveInt('Other charge amount').nullable().optional(),
-    revenueRate: positiveInt('Revenue rate'),
-    plantTechPersonDetails: optTrimmed(200),
-
-    // Step 5 — Display & T&C
-    displayMaterialLocation: z.boolean().default(false),
-    displayPlantLocation: z.boolean().default(false),
+    ...clientEditableFields,
     // When true, auctions for this client can carry a consolidatedEmdAmount
     // and admins can attach bidders in consolidated mode. When false, every
     // attachment must use lot-level EMD.
     allowsConsolidatedEmd: z.boolean().default(false),
     tncFileId: z.string().uuid().nullable().optional(),
   })
-  .superRefine((d, ctx) => {
-    if (d.autoExtend) {
-      if (d.extendIfLastBidSec == null) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['extendIfLastBidSec'],
-          message: 'required when auto-extend is on',
-        });
-      }
-      if (d.extendDurationSec == null) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['extendDurationSec'],
-          message: 'required when auto-extend is on',
-        });
-      }
-      if (d.extensionMaxTimes == null) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['extensionMaxTimes'],
-          message: 'required when auto-extend is on',
-        });
-      }
-    }
-    if (
-      d.staggeringOfLots &&
-      d.staggeringOfLots !== 'none' &&
-      d.staggeringOfLotsDurationSec == null
-    ) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['staggeringOfLotsDurationSec'],
-        message: 'required when staggering of lots is enabled',
-      });
-    }
-    if (d.staggeringOfAuction && d.staggeringOfAuctionDurationSec == null) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['staggeringOfAuctionDurationSec'],
-        message: 'required when staggering of auctions is enabled',
-      });
-    }
-    if (d.otherChargeType && d.otherChargeAmount == null) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['otherChargeAmount'],
-        message: 'required when other-charge type is set',
-      });
-    }
-  });
+  .superRefine(clientCrossFieldRefine);
 export type ClientCreateInput = z.infer<typeof clientCreateSchema>;
+
+// Update schema excludes tncFileId and allowsConsolidatedEmd — those have
+// their own dedicated endpoints. All other client fields are editable here.
+export const clientUpdateSchema = z
+  .object(clientEditableFields)
+  .superRefine(clientCrossFieldRefine);
+export type ClientUpdateInput = z.infer<typeof clientUpdateSchema>;
 
 // Targeted toggle for the per-client consolidated-EMD feature flag. Admins
 // can flip this after onboarding without going through the whole client edit.

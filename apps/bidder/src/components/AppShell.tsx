@@ -3,6 +3,23 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@auction/auth';
 import { Badge, Button, Separator } from '@auction/ui';
 
+function ChevronRight({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
+
 const SIDEBAR_BG = '#f7f8fc';
 
 type NavLeaf = { kind: 'leaf'; label: string; to: string; end?: boolean };
@@ -35,6 +52,7 @@ const NAV: NavItem[] = [
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   async function onLogout() {
     await logout();
@@ -87,7 +105,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <main className="min-w-0 flex-1 overflow-x-hidden bg-background">
-        <div className="mx-auto max-w-6xl px-8 py-8">{children}</div>
+        <div
+          key={location.pathname}
+          className="mx-auto max-w-6xl px-8 py-8 animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out"
+        >
+          {children}
+        </div>
       </main>
     </div>
   );
@@ -109,14 +132,26 @@ function SidebarLink({
       to={to}
       end={end}
       className={({ isActive }) =>
-        `block rounded-md px-3 py-1.5 text-sm transition-colors ${inset ? 'pl-7' : ''} ${
+        `group relative block rounded-md px-3 py-1.5 text-sm transition-all duration-200 ease-out hover:translate-x-0.5 ${
+          inset ? 'pl-7' : ''
+        } ${
           isActive
             ? 'bg-foreground/10 font-medium text-foreground'
             : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground'
         }`
       }
     >
-      {children}
+      {({ isActive }) => (
+        <>
+          <span
+            className={`absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r-full bg-foreground transition-all duration-200 ease-out ${
+              isActive ? 'scale-y-100 opacity-100' : 'scale-y-0 opacity-0'
+            }`}
+            aria-hidden
+          />
+          {children}
+        </>
+      )}
     </NavLink>
   );
 }
@@ -142,10 +177,18 @@ function SidebarGroup({ item }: { item: Extract<NavItem, { kind: 'group' }> }) {
         aria-expanded={open}
       >
         <span>{item.label}</span>
-        <span className="text-xs text-muted-foreground">{open ? '−' : '+'}</span>
+        <ChevronRight
+          className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ease-out ${
+            open ? 'rotate-90' : ''
+          }`}
+        />
       </button>
-      {open && (
-        <ul className="mt-0.5 space-y-0.5">
+      <div
+        className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
+          open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <ul className="mt-0.5 space-y-0.5 overflow-hidden">
           {item.children.map((c) => (
             <li key={c.to}>
               <SidebarLink to={c.to} end={c.end} inset>
@@ -154,7 +197,7 @@ function SidebarGroup({ item }: { item: Extract<NavItem, { kind: 'group' }> }) {
             </li>
           ))}
         </ul>
-      )}
+      </div>
     </div>
   );
 }
