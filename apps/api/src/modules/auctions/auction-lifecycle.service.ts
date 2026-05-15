@@ -28,7 +28,7 @@ export class AuctionLifecycleService {
    * (consolidated), and triggers consolidated settlement for any bidder whose
    * lots are now all terminal (e.g. they won zero lots).
    */
-  async endAuction(auctionId: string, actorId: string) {
+  async endAuction(auctionId: string, actorId: string | null) {
     return this.prisma.$transaction(
       async (tx) => {
         const auction = await tx.auction.findUnique({
@@ -346,7 +346,7 @@ export class AuctionLifecycleService {
     p: { id: string; bidderProfileId: string; emdHeldAmount: number },
     lotId: string,
     tx: Prisma.TransactionClient,
-    actorId: string,
+    actorId: string | null,
   ) {
     if (p.emdHeldAmount > 0) {
       await this.wallet.releaseEmd(
@@ -414,7 +414,7 @@ export class AuctionLifecycleService {
     tx: Prisma.TransactionClient,
     auctionId: string,
     bidderProfileId: string,
-    actorId: string,
+    actorId: string | null,
   ): Promise<boolean> {
     const ap = await tx.auctionParticipation.findUnique({
       where: { auctionId_bidderProfileId: { auctionId, bidderProfileId } },

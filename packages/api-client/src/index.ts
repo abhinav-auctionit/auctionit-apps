@@ -52,9 +52,14 @@ import type {
   CreateLotInput,
   LotOutcomeNoteInput,
   LotOutcomeStatus,
+  LotState,
+  PlaceBidInput,
+  PlaceBidResult,
   UpdateAuctionInput,
   UpdateLotInput,
 } from '@auction/types';
+
+export type { LotState, PlaceBidInput, PlaceBidResult } from '@auction/types';
 
 export type ApiClientOptions = {
   baseUrl: string;
@@ -649,6 +654,17 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
         request<BidderAuctionSummary[]>(baseUrl, '/bidder/me/auctions'),
       getMyAuction: (auctionId: string) =>
         request<BidderAuctionDetail>(baseUrl, `/bidder/me/auctions/${auctionId}`),
+      placeBid: (auctionId: string, lotId: string, body: PlaceBidInput) =>
+        request<PlaceBidResult>(
+          baseUrl,
+          `/bidder/auctions/${auctionId}/lots/${lotId}/bids`,
+          json('POST', body),
+        ),
+      getLotState: (auctionId: string, lotId: string) =>
+        request<LotState>(
+          baseUrl,
+          `/bidder/auctions/${auctionId}/lots/${lotId}/state`,
+        ),
     },
     files: {
       upload: async (file: File): Promise<StoredFile> => {

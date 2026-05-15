@@ -279,52 +279,67 @@ function CategoryNode({
         )}
       </div>
 
-      {expanded && (
-        <ul className="ml-6 mt-0.5 space-y-0.5 border-l border-border pl-2">
-          {category.subcategories.length === 0 && (
-            <li className="px-3 py-1.5 text-xs text-muted-foreground">
-              No subcategories yet.
-            </li>
-          )}
-          {category.subcategories.map((s) => (
-            <li
-              key={s.id}
-              className="group flex items-center gap-2 rounded-md transition-colors hover:bg-secondary"
-            >
-              <Link
-                to={`/items?subcategoryId=${s.id}`}
-                className="flex flex-1 items-center justify-between px-3 py-1.5 text-sm"
+      <div
+        aria-hidden={!expanded}
+        className={cn(
+          'grid transition-[grid-template-rows] duration-200 ease-out',
+          expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+        )}
+      >
+        <div className="overflow-hidden">
+          <ul
+            key={expanded ? 'open' : 'closed'}
+            className="ml-6 mt-0.5 space-y-0.5 border-l border-border pl-2"
+          >
+            {category.subcategories.length === 0 && (
+              <li className="animate-in fade-in slide-in-from-top-1 px-3 py-1.5 text-xs text-muted-foreground duration-200 fill-mode-both">
+                No subcategories yet.
+              </li>
+            )}
+            {category.subcategories.map((s, i) => (
+              <li
+                key={s.id}
+                style={{ animationDelay: `${i * 25}ms` }}
+                className="group flex animate-in items-center gap-2 rounded-md fade-in slide-in-from-top-1 duration-200 fill-mode-both transition-colors hover:bg-secondary"
               >
-                <span className="truncate">{s.name}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {s.itemCount}
-                </span>
-              </Link>
-              {s.itemCount === 0 && (
-                <DeleteIconButton
-                  label={`Delete subcategory "${s.name}"`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteSubcategory(s);
-                  }}
-                />
-              )}
-            </li>
-          ))}
-          <li>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddSubcategory();
-              }}
-              className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                <Link
+                  to={`/items?subcategoryId=${s.id}`}
+                  className="flex flex-1 items-center justify-between px-3 py-1.5 text-sm"
+                >
+                  <span className="truncate">{s.name}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {s.itemCount}
+                  </span>
+                </Link>
+                {s.itemCount === 0 && (
+                  <DeleteIconButton
+                    label={`Delete subcategory "${s.name}"`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteSubcategory(s);
+                    }}
+                  />
+                )}
+              </li>
+            ))}
+            <li
+              style={{ animationDelay: `${category.subcategories.length * 25}ms` }}
+              className="animate-in fade-in slide-in-from-top-1 duration-200 fill-mode-both"
             >
-              <span aria-hidden="true">+</span> Add subcategory
-            </button>
-          </li>
-        </ul>
-      )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddSubcategory();
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <span aria-hidden="true">+</span> Add subcategory
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }

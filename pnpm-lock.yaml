@@ -99,6 +99,9 @@ importers:
       '@nestjs/platform-socket.io':
         specifier: ^10.4.0
         version: 10.4.22(@nestjs/common@10.4.22(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/websockets@10.4.22)(rxjs@7.8.2)
+      '@nestjs/schedule':
+        specifier: ^6.1.3
+        version: 6.1.3(@nestjs/common@10.4.22(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)
       '@nestjs/swagger':
         specifier: ^7.4.0
         version: 7.4.2(@nestjs/common@10.4.22(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(reflect-metadata@0.2.2)
@@ -302,13 +305,13 @@ importers:
     dependencies:
       '@astrojs/react':
         specifier: '4'
-        version: 4.4.2(@types/node@22.19.17)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(jiti@1.21.7)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3)
+        version: 4.4.2(@types/node@22.19.17)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(jiti@2.6.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3)
       '@astrojs/tailwind':
         specifier: ^5.1.2
-        version: 5.1.5(astro@5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@1.21.7)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.3))(ts-node@10.9.2(@types/node@22.19.17)(typescript@5.9.3))
+        version: 5.1.5(astro@5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@2.6.1)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.3))(ts-node@10.9.2(@types/node@22.19.17)(typescript@5.9.3))
       '@astrojs/vercel':
         specifier: '8'
-        version: 8.2.11(@aws-sdk/credential-provider-web-identity@3.972.38)(astro@5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@1.21.7)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3))(react@18.3.1)(rollup@4.60.2)
+        version: 8.2.11(@aws-sdk/credential-provider-web-identity@3.972.38)(astro@5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@2.6.1)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3))(react@18.3.1)(rollup@4.60.2)
       '@auction/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -317,7 +320,7 @@ importers:
         version: link:../../packages/utils
       astro:
         specifier: '5'
-        version: 5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@1.21.7)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+        version: 5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@2.6.1)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -1735,6 +1738,12 @@ packages:
       '@nestjs/websockets': ^10.0.0
       rxjs: ^7.1.0
 
+  '@nestjs/schedule@6.1.3':
+    resolution: {integrity: sha512-RflMFOpR16Dwd1jAUbeB4mfGTCh65fvEdL4mSjQPJChpkRGRjIXjb+6YQcK2faQrVT60c9DmLmoVR7/ONCtuYQ==}
+    peerDependencies:
+      '@nestjs/common': ^10.0.0 || ^11.0.0
+      '@nestjs/core': ^10.0.0 || ^11.0.0
+
   '@nestjs/schematics@10.2.3':
     resolution: {integrity: sha512-4e8gxaCk7DhBxVUly2PjYL4xC2ifDFexCqq1/u4TtivLGXotVk0wHdYuPYe1tHTHuR1lsOkRbfOCpkdTnigLVg==}
     peerDependencies:
@@ -2854,6 +2863,9 @@ packages:
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
+  '@types/luxon@3.7.1':
+    resolution: {integrity: sha512-H3iskjFIAn5SlJU7OuxUmTEpebK6TKB8rxZShDslBMZJ5u9S//KM1sbdAisiSrqwLQncVjnpi2OK2J51h+4lsg==}
+
   '@types/mdast@4.0.4':
     resolution: {integrity: sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==}
 
@@ -3529,6 +3541,10 @@ packages:
 
   create-require@1.1.1:
     resolution: {integrity: sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==}
+
+  cron@4.4.0:
+    resolution: {integrity: sha512-fkdfq+b+AHI4cKdhZlppHveI/mgz2qpiYxcm+t5E5TsxX7QrLS1VE0+7GENEk9z0EeGPcpSciGv6ez24duWhwQ==}
+    engines: {node: '>=18.x'}
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -4539,6 +4555,10 @@ packages:
     resolution: {integrity: sha512-OwQ3uljZLp2cerj8sboy5rnhtGTCl9UCJIhT1J85/yOuGVlEH+xaUPR7tvNdddPvmV5M5VLdr7cQuWE3hzA4jw==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0-rc
+
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
+    engines: {node: '>=12'}
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
@@ -6395,15 +6415,15 @@ snapshots:
     dependencies:
       prismjs: 1.30.0
 
-  '@astrojs/react@4.4.2(@types/node@22.19.17)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(jiti@1.21.7)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3)':
+  '@astrojs/react@4.4.2(@types/node@22.19.17)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(jiti@2.6.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3)':
     dependencies:
       '@types/react': 18.3.28
       '@types/react-dom': 18.3.7(@types/react@18.3.28)
-      '@vitejs/plugin-react': 4.7.0(vite@6.4.2(@types/node@22.19.17)(jiti@1.21.7)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3))
+      '@vitejs/plugin-react': 4.7.0(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3))
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       ultrahtml: 1.6.0
-      vite: 6.4.2(@types/node@22.19.17)(jiti@1.21.7)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 6.4.2(@types/node@22.19.17)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -6418,9 +6438,9 @@ snapshots:
       - tsx
       - yaml
 
-  '@astrojs/tailwind@5.1.5(astro@5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@1.21.7)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.3))(ts-node@10.9.2(@types/node@22.19.17)(typescript@5.9.3))':
+  '@astrojs/tailwind@5.1.5(astro@5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@2.6.1)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.3))(ts-node@10.9.2(@types/node@22.19.17)(typescript@5.9.3))':
     dependencies:
-      astro: 5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@1.21.7)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+      astro: 5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@2.6.1)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
       autoprefixer: 10.5.0(postcss@8.5.13)
       postcss: 8.5.13
       postcss-load-config: 4.0.2(postcss@8.5.13)(ts-node@10.9.2(@types/node@22.19.17)(typescript@5.9.3))
@@ -6440,14 +6460,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@astrojs/vercel@8.2.11(@aws-sdk/credential-provider-web-identity@3.972.38)(astro@5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@1.21.7)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3))(react@18.3.1)(rollup@4.60.2)':
+  '@astrojs/vercel@8.2.11(@aws-sdk/credential-provider-web-identity@3.972.38)(astro@5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@2.6.1)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3))(react@18.3.1)(rollup@4.60.2)':
     dependencies:
       '@astrojs/internal-helpers': 0.7.4
       '@vercel/analytics': 1.6.1(react@18.3.1)
       '@vercel/functions': 2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38)
       '@vercel/nft': 0.30.3(rollup@4.60.2)
       '@vercel/routing-utils': 5.3.3
-      astro: 5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@1.21.7)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+      astro: 5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@2.6.1)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
       esbuild: 0.25.12
       tinyglobby: 0.2.16
     transitivePeerDependencies:
@@ -7818,6 +7838,12 @@ snapshots:
       - supports-color
       - utf-8-validate
 
+  '@nestjs/schedule@6.1.3(@nestjs/common@10.4.22(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)':
+    dependencies:
+      '@nestjs/common': 10.4.22(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 10.4.22(@nestjs/common@10.4.22(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(@nestjs/websockets@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      cron: 4.4.0
+
   '@nestjs/schematics@10.2.3(chokidar@3.6.0)(typescript@5.7.2)':
     dependencies:
       '@angular-devkit/core': 17.3.11(chokidar@3.6.0)
@@ -9010,6 +9036,8 @@ snapshots:
 
   '@types/json-schema@7.0.15': {}
 
+  '@types/luxon@3.7.1': {}
+
   '@types/mdast@4.0.4':
     dependencies:
       '@types/unist': 3.0.3
@@ -9127,7 +9155,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vitejs/plugin-react@4.7.0(vite@6.4.2(@types/node@22.19.17)(jiti@1.21.7)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3))':
+  '@vitejs/plugin-react@4.7.0(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3))':
     dependencies:
       '@babel/core': 7.29.0
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
@@ -9135,7 +9163,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-beta.27
       '@types/babel__core': 7.20.5
       react-refresh: 0.17.0
-      vite: 6.4.2(@types/node@22.19.17)(jiti@1.21.7)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 6.4.2(@types/node@22.19.17)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3)
     transitivePeerDependencies:
       - supports-color
 
@@ -9329,7 +9357,7 @@ snapshots:
 
   array-timsort@1.0.3: {}
 
-  astro@5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@1.21.7)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3):
+  astro@5.18.1(@types/node@22.19.17)(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))(jiti@2.6.1)(rollup@4.60.2)(terser@5.46.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3):
     dependencies:
       '@astrojs/compiler': 2.13.1
       '@astrojs/internal-helpers': 0.7.6
@@ -9386,8 +9414,8 @@ snapshots:
       unist-util-visit: 5.1.0
       unstorage: 1.17.5(@vercel/functions@2.2.13(@aws-sdk/credential-provider-web-identity@3.972.38))
       vfile: 6.0.3
-      vite: 6.4.2(@types/node@22.19.17)(jiti@1.21.7)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3)
-      vitefu: 1.1.3(vite@6.4.2(@types/node@22.19.17)(jiti@1.21.7)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3))
+      vite: 6.4.2(@types/node@22.19.17)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3)
+      vitefu: 1.1.3(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3))
       xxhash-wasm: 1.1.0
       yargs-parser: 21.1.1
       yocto-spinner: 0.2.3
@@ -9837,6 +9865,11 @@ snapshots:
       - ts-node
 
   create-require@1.1.1: {}
+
+  cron@4.4.0:
+    dependencies:
+      '@types/luxon': 3.7.1
+      luxon: 3.7.2
 
   cross-spawn@7.0.6:
     dependencies:
@@ -11162,6 +11195,8 @@ snapshots:
   lucide-react@0.451.0(react@18.3.1):
     dependencies:
       react: 18.3.1
+
+  luxon@3.7.2: {}
 
   magic-string@0.30.21:
     dependencies:
@@ -12928,7 +12963,7 @@ snapshots:
       fsevents: 2.3.3
       terser: 5.46.2
 
-  vite@6.4.2(@types/node@22.19.17)(jiti@1.21.7)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3):
+  vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3):
     dependencies:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.4)
@@ -12939,14 +12974,14 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.19.17
       fsevents: 2.3.3
-      jiti: 1.21.7
+      jiti: 2.6.1
       terser: 5.46.2
       tsx: 4.21.0
       yaml: 2.8.3
 
-  vitefu@1.1.3(vite@6.4.2(@types/node@22.19.17)(jiti@1.21.7)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3)):
+  vitefu@1.1.3(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3)):
     optionalDependencies:
-      vite: 6.4.2(@types/node@22.19.17)(jiti@1.21.7)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 6.4.2(@types/node@22.19.17)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.3)
 
   walker@1.0.8:
     dependencies:

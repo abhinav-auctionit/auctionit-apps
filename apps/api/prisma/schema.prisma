@@ -541,6 +541,10 @@ model Lot {
   startingPriceCents    Int               @map("starting_price_cents")
   bidIncrementCents     Int               @default(100) @map("bid_increment_cents")
   emdAmount             Int               @map("emd_amount")
+  currentBidCents       Int?              @map("current_bid_cents")
+  currentBidderId       String?           @map("current_bidder_id") @db.Uuid
+  currentBidPlacedAt    DateTime?         @map("current_bid_placed_at") @db.Timestamptz(6)
+  bidCount              Int               @default(0) @map("bid_count")
   winnerId              String?           @map("winner_id") @db.Uuid
   winningBidAmountCents Int?              @map("winning_bid_amount_cents")
   outcomeStatus         LotOutcomeStatus? @map("outcome_status")

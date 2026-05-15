@@ -1,4 +1,6 @@
 export { cn } from './lib/utils';
+export { useTheme, type Theme } from './lib/theme';
+export { ThemeToggle } from './components/theme-toggle';
 
 export * from './components/ui/alert-dialog';
 export * from './components/ui/badge';

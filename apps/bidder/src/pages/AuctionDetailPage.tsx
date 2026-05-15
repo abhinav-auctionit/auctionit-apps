@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ApiError, type BidderAuctionLot } from '@auction/api-client';
+import { ApiError, type BidderAuctionLot, type BidderAuctionDetail } from '@auction/api-client';
 import { useApiClient } from '@auction/auth';
 import {
   Badge,
@@ -179,11 +179,17 @@ export function AuctionDetailPage() {
                       <th className="px-3 py-2 text-right">Start bid</th>
                       <th className="px-3 py-2 text-right">EMD held</th>
                       <th className="px-3 py-2 text-left">Outcome</th>
+                      <th className="px-3 py-2" />
                     </tr>
                   </thead>
                   <tbody>
                     {lots.map((l) => (
-                      <LotRow key={l.lotId} lot={l} />
+                      <LotRow
+                        key={l.lotId}
+                        auctionId={auction.id}
+                        auctionStatus={auction.status}
+                        lot={l}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -196,8 +202,19 @@ export function AuctionDetailPage() {
   );
 }
 
-function LotRow({ lot }: { lot: BidderAuctionLot }) {
+function LotRow({
+  lot,
+  auctionId,
+  auctionStatus,
+}: {
+  lot: BidderAuctionLot;
+  auctionId: string;
+  auctionStatus: BidderAuctionDetail['auction']['status'];
+}) {
   const outcome = lot.outcomeStatus ? OUTCOME_LABEL[lot.outcomeStatus] : null;
+  const auctionLive = auctionStatus === 'live' || auctionStatus === 'scheduled';
+  const lotEnded = new Date(lot.endTime).getTime() <= Date.now();
+  const canBid = auctionLive && !lotEnded && !lot.releasedAt;
   return (
     <tr className="border-b last:border-b-0">
       <td className="px-3 py-2 tabular-nums">{lot.lotNo}</td>
@@ -234,6 +251,16 @@ function LotRow({ lot }: { lot: BidderAuctionLot }) {
           </div>
         ) : (
           <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </td>
+      <td className="px-3 py-2 text-right">
+        {canBid && (
+          <Link
+            to={`/auctions/${auctionId}/lots/${lot.lotId}`}
+            className="inline-flex items-center rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Bid
+          </Link>
         )}
       </td>
     </tr>

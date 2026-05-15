@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from './config/config.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -17,6 +18,7 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule,
     PrismaModule,
     StorageModule,

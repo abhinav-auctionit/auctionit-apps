@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@auction/auth';
-import { Badge, Button, Separator } from '@auction/ui';
+import { Badge, Button, Separator, ThemeToggle } from '@auction/ui';
 
 function ChevronRight({ className }: { className?: string }) {
   return (
@@ -19,8 +19,6 @@ function ChevronRight({ className }: { className?: string }) {
     </svg>
   );
 }
-
-const SIDEBAR_BG = '#f7f8fc';
 
 type NavLeaf = { kind: 'leaf'; label: string; to: string; end?: boolean };
 type NavGroup = { kind: 'group'; label: string; basePaths: string[]; children: NavLeaf[] };
@@ -58,8 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <aside
-        className="flex w-60 shrink-0 flex-col border-r border-border"
-        style={{ backgroundColor: SIDEBAR_BG }}
+        className="flex w-60 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground"
       >
         <div className="px-5 py-5">
           <Link to="/" className="font-semibold tracking-tight">
@@ -95,9 +92,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             </div>
           )}
-          <Button size="sm" className="w-full" onClick={onLogout}>
-            Log out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" className="flex-1" onClick={onLogout}>
+              Log out
+            </Button>
+            <ThemeToggle />
+          </div>
         </div>
       </aside>
       <main className="min-w-0 flex-1 overflow-x-hidden bg-background">

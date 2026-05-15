@@ -6,6 +6,15 @@
     <title>Auction · Bidder</title>
   </head>
   <body>
+    <script>
+      (function () {
+        try {
+          var v = localStorage.getItem('theme');
+          var dark = v === 'dark' || ((v === null || v === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
