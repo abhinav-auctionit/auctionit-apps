@@ -414,6 +414,12 @@ export type Lot = {
   createdAt: string;
   updatedAt: string;
   item: LotItemRef | null;
+  winner: {
+    id: string;
+    name: string;
+    email: string;
+    bidderProfile: { companyName: string | null } | null;
+  } | null;
 };
 
 export type AuctionDetail = Auction & {

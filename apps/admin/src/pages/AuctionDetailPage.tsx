@@ -540,14 +540,31 @@ function LotOutcomeCell({ auctionId, lot }: { auctionId: string; lot: Lot }) {
   const status = lot.outcomeStatus ?? 'pending_lift';
   const meta = OUTCOME_LABEL[status] ?? { label: status, tone: 'bg-muted' };
   const busy = lift.isPending || forfeit.isPending || reject.isPending;
+  const error = lift.error ?? forfeit.error ?? reject.error;
+  const company = lot.winner?.bidderProfile?.companyName ?? null;
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5 min-w-[180px]">
       <span
         className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${meta.tone}`}
       >
         {meta.label}
       </span>
+      {lot.winner ? (
+        <div className="text-xs leading-tight">
+          <div className="font-medium text-foreground">{lot.winner.name}</div>
+          {company && (
+            <div className="text-[11px] text-muted-foreground">{company}</div>
+          )}
+          {lot.winningBidAmountCents !== null && (
+            <div className="font-medium tabular-nums text-emerald-700">
+              {formatRsFromCents(lot.winningBidAmountCents)}
+            </div>
+          )}
+        </div>
+      ) : status === 'no_winner' ? (
+        <div className="text-[11px] italic text-muted-foreground">No bids placed</div>
+      ) : null}
       {status === 'pending_lift' && (
         <div className="flex flex-wrap gap-1 text-[10px]">
           <button
@@ -577,6 +594,11 @@ function LotOutcomeCell({ auctionId, lot }: { auctionId: string; lot: Lot }) {
             Reject
           </button>
         </div>
+      )}
+      {error && (
+        <p className="text-[11px] text-destructive">
+          {error instanceof ApiError ? error.message : 'Action failed'}
+        </p>
       )}
     </div>
   );

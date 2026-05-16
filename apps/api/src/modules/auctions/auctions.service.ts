@@ -43,6 +43,14 @@ const LOT_ITEM_SELECT = {
 
 const LOT_INCLUDE = {
   item: { select: LOT_ITEM_SELECT },
+  winner: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      bidderProfile: { select: { companyName: true } },
+    },
+  },
 } satisfies Prisma.LotInclude;
 
 const DETAIL_INCLUDE = {
