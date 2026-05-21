@@ -22,41 +22,29 @@ export class CategoriesService {
           include: {
             microcategories: {
               orderBy: [{ position: 'asc' }, { name: 'asc' }],
-              include: { _count: { select: { items: true } } },
             },
           },
         },
       },
     });
 
-    return rows.map((cat) => {
-      const subcategories = cat.subcategories.map((s) => {
-        const microcategories = s.microcategories.map((m) => ({
+    return rows.map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+      position: cat.position,
+      createdAt: cat.createdAt,
+      updatedAt: cat.updatedAt,
+      subcategories: cat.subcategories.map((s) => ({
+        id: s.id,
+        name: s.name,
+        position: s.position,
+        microcategories: s.microcategories.map((m) => ({
           id: m.id,
           name: m.name,
           position: m.position,
-          itemCount: m._count.items,
-        }));
-        const subItemCount = microcategories.reduce((acc, m) => acc + m.itemCount, 0);
-        return {
-          id: s.id,
-          name: s.name,
-          position: s.position,
-          itemCount: subItemCount,
-          microcategories,
-        };
-      });
-      const itemCount = subcategories.reduce((acc, s) => acc + s.itemCount, 0);
-      return {
-        id: cat.id,
-        name: cat.name,
-        position: cat.position,
-        createdAt: cat.createdAt,
-        updatedAt: cat.updatedAt,
-        itemCount,
-        subcategories,
-      };
-    });
+        })),
+      })),
+    }));
   }
 
   async createCategory(dto: CreateCategoryDto) {
@@ -124,5 +112,40 @@ export class CategoriesService {
       throw new NotFoundException(`microcategory ${id} not found`);
     }
     return { ok: true as const };
+  }
+
+  // Suggests attribute-library entries that have been used on lots in this
+  // microcategory before, ranked by usage. Powers the "common attributes"
+  // picker on the lot edit form.
+  async suggestedAttributes(microcategoryId: string) {
+    const total = await this.prisma.lot.count({ where: { microcategoryId } });
+    const grouped = await this.prisma.lotAttributeValue.groupBy({
+      by: ['attributeId'],
+      where: {
+        attributeId: { not: null },
+        lot: { microcategoryId },
+      },
+      _count: { lotId: true },
+    });
+    const attrIds = grouped
+      .map((g) => g.attributeId)
+      .filter((id): id is string => id !== null);
+    const attrs = attrIds.length
+      ? await this.prisma.attribute.findMany({
+          where: { id: { in: attrIds } },
+          select: { id: true, name: true, type: true, unit: true },
+        })
+      : [];
+
+    const sorted = grouped
+      .map((g) => {
+        const attr = attrs.find((a) => a.id === g.attributeId);
+        if (!attr) return null;
+        return { ...attr, used: g._count.lotId };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .sort((a, b) => b.used - a.used);
+
+    return { total, attributes: sorted };
   }
 }

@@ -8,9 +8,6 @@ import { DashboardPage } from './pages/DashboardPage';
 import { UsersNewPage } from './pages/UsersNewPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { AttributesPage } from './pages/AttributesPage';
-import { ItemsPage } from './pages/ItemsPage';
-import { ItemDetailPage } from './pages/ItemDetailPage';
-import { NewItemPage } from './pages/NewItemPage';
 import { BiddersPage } from './pages/BiddersPage';
 import { BidderDetailPage } from './pages/BidderDetailPage';
 import { WalletsPage } from './pages/WalletsPage';
@@ -48,9 +45,6 @@ export function App() {
             <Route path="/users/new" element={adminRoute(<UsersNewPage />)} />
             <Route path="/inventory/categories" element={adminRoute(<CategoriesPage />)} />
             <Route path="/inventory/attributes" element={adminRoute(<AttributesPage />)} />
-            <Route path="/items" element={adminRoute(<ItemsPage />)} />
-            <Route path="/items/new" element={adminRoute(<NewItemPage />)} />
-            <Route path="/items/:id" element={adminRoute(<ItemDetailPage />)} />
             <Route path="/bidders" element={adminRoute(<BiddersPage />)} />
             <Route path="/bidders/:id" element={adminRoute(<BidderDetailPage />)} />
             <Route path="/wallets" element={adminRoute(<WalletsPage />)} />

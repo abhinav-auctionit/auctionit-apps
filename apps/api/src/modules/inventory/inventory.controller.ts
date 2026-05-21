@@ -1,19 +1,15 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CategoriesService } from './categories.service';
 import { AttributesService } from './attributes.service';
-import { ItemsService } from './items.service';
 import {
   CreateAttributeDto,
   CreateCategoryDto,
-  CreateItemDto,
   CreateMicrocategoryDto,
   CreateSubcategoryDto,
-  ItemAttributeValueInputDto,
   UpdateAttributeDto,
   UpdateCategoryDto,
-  UpdateItemDto,
   UpdateMicrocategoryDto,
   UpdateSubcategoryDto,
 } from './dto';
@@ -25,7 +21,6 @@ export class InventoryController {
   constructor(
     private readonly categories: CategoriesService,
     private readonly attributes: AttributesService,
-    private readonly items: ItemsService,
   ) {}
 
   @Get('categories')
@@ -83,7 +78,7 @@ export class InventoryController {
 
   @Get('microcategories/:id/suggested-attributes')
   suggestedAttributes(@Param('id', ParseUUIDPipe) id: string) {
-    return this.items.suggestedAttributes(id);
+    return this.categories.suggestedAttributes(id);
   }
 
   @Get('attributes')
@@ -109,50 +104,5 @@ export class InventoryController {
   @Delete('attributes/:id')
   deleteAttribute(@Param('id', ParseUUIDPipe) id: string) {
     return this.attributes.delete(id);
-  }
-
-  @Get('items')
-  listItems(
-    @Query('microcategoryId') microcategoryId?: string,
-    @Query('subcategoryId') subcategoryId?: string,
-    @Query('categoryId') categoryId?: string,
-  ) {
-    return this.items.list({ microcategoryId, subcategoryId, categoryId });
-  }
-
-  @Get('items/:id')
-  getItem(@Param('id', ParseUUIDPipe) id: string) {
-    return this.items.findOne(id);
-  }
-
-  @Post('items')
-  createItem(@Body() dto: CreateItemDto) {
-    return this.items.create(dto);
-  }
-
-  @Patch('items/:id')
-  updateItem(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateItemDto) {
-    return this.items.update(id, dto);
-  }
-
-  @Delete('items/:id')
-  deleteItem(@Param('id', ParseUUIDPipe) id: string) {
-    return this.items.delete(id);
-  }
-
-  @Post('items/:id/attribute-values')
-  addItemAttributeValue(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: ItemAttributeValueInputDto,
-  ) {
-    return this.items.addAttributeValue(id, dto);
-  }
-
-  @Delete('items/:id/attribute-values/:valueId')
-  removeItemAttributeValue(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('valueId', ParseUUIDPipe) valueId: string,
-  ) {
-    return this.items.removeAttributeValue(id, valueId);
   }
 }

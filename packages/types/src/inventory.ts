@@ -64,25 +64,10 @@ export const updateAttributeSchema = z.object({
 });
 export type UpdateAttributeInput = z.infer<typeof updateAttributeSchema>;
 
-export const createItemSchema = z.object({
-  microcategoryId: z.string().uuid(),
-  name: nameField,
-  uom: uomSchema,
-  hsnCode: hsnCodeSchema,
-  benchmarkCents: z.number().int().nonnegative().optional(),
-});
-export type CreateItemInput = z.infer<typeof createItemSchema>;
-
-export const updateItemSchema = z.object({
-  microcategoryId: z.string().uuid().optional(),
-  name: nameField.optional(),
-  uom: uomSchema.optional(),
-  hsnCode: hsnCodeSchema.optional(),
-  benchmarkCents: z.number().int().nonnegative().nullable().optional(),
-});
-export type UpdateItemInput = z.infer<typeof updateItemSchema>;
-
-export const itemAttributeValueInputSchema = z
+// Per-lot attribute capture. Each entry either references an attribute from
+// the library (attributeId) or is a one-off (customName). Exactly one value
+// field (text/number/optionIds) must be present.
+export const lotAttributeValueInputSchema = z
   .object({
     attributeId: z.string().uuid().optional(),
     customName: nameField.optional(),
@@ -110,4 +95,4 @@ export const itemAttributeValueInputSchema = z
       });
     }
   });
-export type ItemAttributeValueInput = z.infer<typeof itemAttributeValueInputSchema>;
+export type LotAttributeValueInput = z.infer<typeof lotAttributeValueInputSchema>;

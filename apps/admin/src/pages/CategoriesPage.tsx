@@ -1,5 +1,4 @@
 import { useState, type FormEvent, type MouseEvent } from 'react';
-import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ApiError,
@@ -338,8 +337,7 @@ function CategoryNode({
           <span className="flex-1 truncate font-medium">{category.name}</span>
         </button>
         <span className="shrink-0 text-xs text-muted-foreground">
-          {category.subcategories.length} sub · {category.itemCount} item
-          {category.itemCount === 1 ? '' : 's'}
+          {category.subcategories.length} sub
         </span>
         {canDeleteCategory && (
           <DeleteIconButton
@@ -421,8 +419,7 @@ function SubcategoryNode({
   onDeleteMicrocategory: (m: { id: string; name: string }) => void;
 }) {
   const isOpen = expanded.has(subcategory.id);
-  const canDeleteSub =
-    subcategory.microcategories.length === 0 && subcategory.itemCount === 0;
+  const canDeleteSub = subcategory.microcategories.length === 0;
   return (
     <li
       style={{ animationDelay: `${index * 25}ms` }}
@@ -438,8 +435,7 @@ function SubcategoryNode({
           <Chevron expanded={isOpen} />
           <span className="flex-1 truncate">{subcategory.name}</span>
           <span className="shrink-0 text-xs text-muted-foreground">
-            {subcategory.microcategories.length} micro · {subcategory.itemCount} item
-            {subcategory.itemCount === 1 ? '' : 's'}
+            {subcategory.microcategories.length} micro
           </span>
         </button>
         {canDeleteSub && (
@@ -476,22 +472,16 @@ function SubcategoryNode({
                 style={{ animationDelay: `${j * 25}ms` }}
                 className="group flex animate-in items-center gap-2 rounded-md fade-in slide-in-from-top-1 duration-200 fill-mode-both transition-colors hover:bg-secondary"
               >
-                <Link
-                  to={`/items?microcategoryId=${m.id}`}
-                  className="flex flex-1 items-center justify-between px-3 py-1.5 text-sm"
-                >
+                <div className="flex flex-1 items-center justify-between px-3 py-1.5 text-sm">
                   <span className="truncate">{m.name}</span>
-                  <span className="shrink-0 text-xs text-muted-foreground">{m.itemCount}</span>
-                </Link>
-                {m.itemCount === 0 && (
-                  <DeleteIconButton
-                    label={`Delete microcategory "${m.name}"`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteMicrocategory(m);
-                    }}
-                  />
-                )}
+                </div>
+                <DeleteIconButton
+                  label={`Delete microcategory "${m.name}"`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteMicrocategory(m);
+                  }}
+                />
               </li>
             ))}
             <li

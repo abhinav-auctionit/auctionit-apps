@@ -28,27 +28,31 @@ const LIST_INCLUDE = {
   _count: { select: { lots: true } },
 } satisfies Prisma.AuctionInclude;
 
-const LOT_ITEM_SELECT = {
+const LOT_MICROCATEGORY_SELECT = {
   id: true,
   name: true,
-  uom: true,
-  microcategory: {
+  subcategory: {
     select: {
       id: true,
       name: true,
-      subcategory: {
-        select: {
-          id: true,
-          name: true,
-          category: { select: { id: true, name: true } },
-        },
-      },
+      category: { select: { id: true, name: true } },
     },
   },
-} satisfies Prisma.ItemSelect;
+} satisfies Prisma.MicrocategorySelect;
+
+const LOT_ATTRIBUTE_VALUE_SELECT = {
+  id: true,
+  attributeId: true,
+  customName: true,
+  valueText: true,
+  valueNumber: true,
+  valueOptionIds: true,
+  attribute: { select: { name: true, type: true, unit: true } },
+} satisfies Prisma.LotAttributeValueSelect;
 
 const LOT_INCLUDE = {
-  item: { select: LOT_ITEM_SELECT },
+  microcategory: { select: LOT_MICROCATEGORY_SELECT },
+  attributeValues: { select: LOT_ATTRIBUTE_VALUE_SELECT },
   winner: {
     select: {
       id: true,
@@ -68,6 +72,8 @@ const DETAIL_INCLUDE = {
     include: LOT_INCLUDE,
   },
 } satisfies Prisma.AuctionInclude;
+
+type LotAttributeValueInput = NonNullable<CreateLotDto['attributeValues']>[number];
 
 @Injectable()
 export class AuctionsService {
@@ -220,29 +226,29 @@ export class AuctionsService {
     });
     const lotNo = (last?.lotNo ?? 0) + 1;
 
-    if (dto.itemId) {
-      const item = await this.prisma.item.findUnique({
-        where: { id: dto.itemId },
-        select: { id: true },
-      });
-      if (!item) throw new BadRequestException('itemId: item not found');
-    }
+    await this.assertMicrocategoryExists(dto.microcategoryId);
+    await this.validateAttributeValues(dto.attributeValues);
 
     return this.prisma.lot.create({
       data: {
         auctionId,
         lotNo,
-        itemId: dto.itemId ?? null,
+        microcategoryId: dto.microcategoryId,
         itemName: dto.itemName,
         description: dto.description ?? null,
         qty: dto.qty,
         uom: dto.uom,
+        hsnCode: dto.hsnCode,
+        benchmarkCents: dto.benchmarkCents ?? null,
         auctionDate: dto.auctionDate,
         startTime: dto.startTime,
         endTime: dto.endTime,
         startingPriceCents: dto.startingPriceCents,
         bidIncrementCents: dto.bidIncrementCents,
         emdAmount: dto.emdAmount,
+        attributeValues: dto.attributeValues?.length
+          ? { create: dto.attributeValues.map(toAttributeValueCreate) }
+          : undefined,
       },
       include: LOT_INCLUDE,
     });
@@ -253,12 +259,11 @@ export class AuctionsService {
     if (!lot || lot.auctionId !== auctionId) {
       throw new NotFoundException('lot not found in this auction');
     }
-    if (dto.itemId) {
-      const item = await this.prisma.item.findUnique({
-        where: { id: dto.itemId },
-        select: { id: true },
-      });
-      if (!item) throw new BadRequestException('itemId: item not found');
+    if (dto.microcategoryId) {
+      await this.assertMicrocategoryExists(dto.microcategoryId);
+    }
+    if (dto.attributeValues !== undefined) {
+      await this.validateAttributeValues(dto.attributeValues);
     }
     // Block EMD edits while any participation row exists for this lot — held
     // money would no longer match the configured amount.
@@ -272,26 +277,41 @@ export class AuctionsService {
         );
       }
     }
-    return this.prisma.lot.update({
-      where: { id: lotId },
-      data: {
-        ...(dto.itemId !== undefined ? { itemId: dto.itemId } : {}),
-        ...(dto.itemName !== undefined ? { itemName: dto.itemName } : {}),
-        ...(dto.description !== undefined ? { description: dto.description } : {}),
-        ...(dto.qty !== undefined ? { qty: dto.qty } : {}),
-        ...(dto.uom !== undefined ? { uom: dto.uom } : {}),
-        ...(dto.auctionDate !== undefined ? { auctionDate: dto.auctionDate } : {}),
-        ...(dto.startTime !== undefined ? { startTime: dto.startTime } : {}),
-        ...(dto.endTime !== undefined ? { endTime: dto.endTime } : {}),
-        ...(dto.startingPriceCents !== undefined
-          ? { startingPriceCents: dto.startingPriceCents }
-          : {}),
-        ...(dto.bidIncrementCents !== undefined
-          ? { bidIncrementCents: dto.bidIncrementCents }
-          : {}),
-        ...(dto.emdAmount !== undefined ? { emdAmount: dto.emdAmount } : {}),
-      },
-      include: LOT_INCLUDE,
+    return this.prisma.$transaction(async (tx) => {
+      if (dto.attributeValues !== undefined) {
+        await tx.lotAttributeValue.deleteMany({ where: { lotId } });
+        if (dto.attributeValues.length) {
+          await tx.lotAttributeValue.createMany({
+            data: dto.attributeValues.map((v) => ({
+              lotId,
+              ...toAttributeValueCreate(v),
+            })),
+          });
+        }
+      }
+      return tx.lot.update({
+        where: { id: lotId },
+        data: {
+          ...(dto.microcategoryId !== undefined ? { microcategoryId: dto.microcategoryId } : {}),
+          ...(dto.itemName !== undefined ? { itemName: dto.itemName } : {}),
+          ...(dto.description !== undefined ? { description: dto.description } : {}),
+          ...(dto.qty !== undefined ? { qty: dto.qty } : {}),
+          ...(dto.uom !== undefined ? { uom: dto.uom } : {}),
+          ...(dto.hsnCode !== undefined ? { hsnCode: dto.hsnCode } : {}),
+          ...(dto.benchmarkCents !== undefined ? { benchmarkCents: dto.benchmarkCents } : {}),
+          ...(dto.auctionDate !== undefined ? { auctionDate: dto.auctionDate } : {}),
+          ...(dto.startTime !== undefined ? { startTime: dto.startTime } : {}),
+          ...(dto.endTime !== undefined ? { endTime: dto.endTime } : {}),
+          ...(dto.startingPriceCents !== undefined
+            ? { startingPriceCents: dto.startingPriceCents }
+            : {}),
+          ...(dto.bidIncrementCents !== undefined
+            ? { bidIncrementCents: dto.bidIncrementCents }
+            : {}),
+          ...(dto.emdAmount !== undefined ? { emdAmount: dto.emdAmount } : {}),
+        },
+        include: LOT_INCLUDE,
+      });
     });
   }
 
@@ -347,4 +367,67 @@ export class AuctionsService {
       },
     });
   }
+
+  // -- helpers ---------------------------------------------------------------
+
+  private async assertMicrocategoryExists(microcategoryId: string) {
+    const m = await this.prisma.microcategory.findUnique({
+      where: { id: microcategoryId },
+      select: { id: true },
+    });
+    if (!m) throw new BadRequestException('microcategoryId: microcategory not found');
+  }
+
+  private async validateAttributeValues(values: LotAttributeValueInput[] | undefined) {
+    if (!values || values.length === 0) return;
+    const attrIds = Array.from(
+      new Set(
+        values
+          .map((v) => v.attributeId)
+          .filter((id): id is string => typeof id === 'string'),
+      ),
+    );
+    if (attrIds.length === 0) return;
+    const attrs = await this.prisma.attribute.findMany({
+      where: { id: { in: attrIds } },
+      include: { options: { select: { id: true } } },
+    });
+    const byId = new Map(attrs.map((a) => [a.id, a]));
+    for (const v of values) {
+      if (!v.attributeId) continue;
+      const attr = byId.get(v.attributeId);
+      if (!attr) throw new BadRequestException('attributeId: attribute not found');
+      if (attr.type === 'text' && v.valueText === undefined) {
+        throw new BadRequestException('valueText required for text attribute');
+      }
+      if (attr.type === 'number' && v.valueNumber === undefined) {
+        throw new BadRequestException('valueNumber required for number attribute');
+      }
+      if (
+        (attr.type === 'single_select' || attr.type === 'multi_select') &&
+        !v.valueOptionIds?.length
+      ) {
+        throw new BadRequestException('valueOptionIds required for select attribute');
+      }
+      if (attr.type === 'single_select' && (v.valueOptionIds?.length ?? 0) !== 1) {
+        throw new BadRequestException('single_select expects exactly one option');
+      }
+      if (attr.type === 'single_select' || attr.type === 'multi_select') {
+        const allowed = new Set(attr.options.map((o) => o.id));
+        for (const oid of v.valueOptionIds ?? []) {
+          if (!allowed.has(oid)) throw new BadRequestException('invalid option id');
+        }
+      }
+    }
+  }
+}
+
+function toAttributeValueCreate(v: LotAttributeValueInput) {
+  return {
+    attributeId: v.attributeId ?? null,
+    customName: v.customName ?? null,
+    valueText: v.valueText ?? null,
+    valueNumber: v.valueNumber !== undefined ? v.valueNumber : null,
+    valueOptionIds: v.valueOptionIds ?? [],
+  };
 }

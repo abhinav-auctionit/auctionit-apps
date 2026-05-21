@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { uomSchema } from './inventory.js';
+import { hsnCodeSchema, lotAttributeValueInputSchema, uomSchema } from './inventory.js';
 
 export const auctionStatusSchema = z.enum([
   'draft',
@@ -58,17 +58,20 @@ export type UpdateAuctionInput = z.infer<typeof updateAuctionSchema>;
 
 export const createLotSchema = z
   .object({
-    itemId: z.string().uuid().optional().nullable(),
+    microcategoryId: z.string().uuid(),
     itemName: trimmedString(255),
     description: z.string().trim().max(4000).optional().nullable(),
     qty: z.coerce.number().positive('Quantity must be greater than 0'),
     uom: uomSchema,
+    hsnCode: hsnCodeSchema,
+    benchmarkCents: z.number().int().nonnegative().optional().nullable(),
     auctionDate: z.coerce.date(),
     startTime: z.coerce.date(),
     endTime: z.coerce.date(),
     startingPriceCents: z.number().int().nonnegative(),
     bidIncrementCents: z.number().int().positive().default(100),
     emdAmount: z.number().int().nonnegative(),
+    attributeValues: z.array(lotAttributeValueInputSchema).optional(),
   })
   .refine((d) => d.endTime > d.startTime, {
     path: ['endTime'],
@@ -78,17 +81,20 @@ export type CreateLotInput = z.infer<typeof createLotSchema>;
 
 export const updateLotSchema = z
   .object({
-    itemId: z.string().uuid().nullable(),
+    microcategoryId: z.string().uuid(),
     itemName: trimmedString(255),
     description: z.string().trim().max(4000).nullable(),
     qty: z.coerce.number().positive(),
     uom: uomSchema,
+    hsnCode: hsnCodeSchema,
+    benchmarkCents: z.number().int().nonnegative().nullable(),
     auctionDate: z.coerce.date(),
     startTime: z.coerce.date(),
     endTime: z.coerce.date(),
     startingPriceCents: z.number().int().nonnegative(),
     bidIncrementCents: z.number().int().positive(),
     emdAmount: z.number().int().nonnegative(),
+    attributeValues: z.array(lotAttributeValueInputSchema),
   })
   .partial()
   .refine(

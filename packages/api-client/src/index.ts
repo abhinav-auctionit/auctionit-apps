@@ -10,12 +10,10 @@ import type {
   CompanyType,
   CreateAttributeInput,
   CreateCategoryInput,
-  CreateItemInput,
   CreateMicrocategoryInput,
   CreateSubcategoryInput,
   CreateUserInput,
   InterestedIn,
-  ItemAttributeValueInput,
   LoginInput,
   OtpSendEmailInput,
   OtpSendMobileInput,
@@ -25,7 +23,6 @@ import type {
   SubscriptionType,
   Uom,
   UpdateAttributeInput,
-  UpdateItemInput,
   User,
   WalletCreditInput,
   WalletDebitInput,
@@ -103,14 +100,12 @@ export type MicrocategorySummary = {
   id: string;
   name: string;
   position: number;
-  itemCount: number;
 };
 
 export type SubcategoryWithMicrocategories = {
   id: string;
   name: string;
   position: number;
-  itemCount: number;
   microcategories: MicrocategorySummary[];
 };
 
@@ -118,7 +113,6 @@ export type CategoryWithSubcategories = {
   id: string;
   name: string;
   position: number;
-  itemCount: number;
   subcategories: SubcategoryWithMicrocategories[];
 };
 
@@ -135,36 +129,14 @@ export type AttributeListItem = {
   options: AttributeOption[];
 };
 
-export type ItemAttributeValueRead = {
+export type LotAttributeValueRead = {
   id: string;
   attributeId: string | null;
   customName: string | null;
   valueText: string | null;
   valueNumber: string | null;
   valueOptionIds: string[] | null;
-  attrName: string | null;
-  attrType: AttributeType | null;
-  attrUnit: string | null;
-};
-
-export type ItemListRow = {
-  id: string;
-  name: string;
-  uom: Uom;
-  hsnCode: string;
-  benchmarkCents: number | null;
-  microcategoryId: string;
-  microcategoryName: string;
-  subcategoryId: string;
-  subcategoryName: string;
-  categoryId: string;
-  categoryName: string;
-  attributeValues: ItemAttributeValueRead[];
-};
-
-export type ItemDetail = ItemListRow & {
-  createdAt: string;
-  updatedAt: string;
+  attribute: { name: string; type: AttributeType; unit: string | null } | null;
 };
 
 export type SuggestedAttributesResponse = {
@@ -397,18 +369,13 @@ export type AuctionListRow = Auction & {
   _count: { lots: number };
 };
 
-export type LotItemRef = {
+export type LotMicrocategoryRef = {
   id: string;
   name: string;
-  uom: Uom;
-  microcategory: {
+  subcategory: {
     id: string;
     name: string;
-    subcategory: {
-      id: string;
-      name: string;
-      category: { id: string; name: string };
-    };
+    category: { id: string; name: string };
   };
 };
 
@@ -416,11 +383,13 @@ export type Lot = {
   id: string;
   auctionId: string;
   lotNo: number;
-  itemId: string | null;
+  microcategoryId: string;
   itemName: string;
   description: string | null;
   qty: string;
   uom: Uom;
+  hsnCode: string;
+  benchmarkCents: number | null;
   auctionDate: string;
   startTime: string;
   endTime: string;
@@ -435,7 +404,8 @@ export type Lot = {
   rejectedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  item: LotItemRef | null;
+  microcategory: LotMicrocategoryRef;
+  attributeValues: LotAttributeValueRead[];
   winner: {
     id: string;
     name: string;
@@ -986,30 +956,6 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
         request<AttributeListItem>(baseUrl, `/attributes/${id}`, json('PATCH', body)),
       deleteAttribute: (id: string) =>
         request<{ ok: true }>(baseUrl, `/attributes/${id}`, { method: 'DELETE' }),
-
-      listItems: (
-        params: { microcategoryId?: string; subcategoryId?: string; categoryId?: string } = {},
-      ) => {
-        const qs = new URLSearchParams();
-        if (params.microcategoryId) qs.set('microcategoryId', params.microcategoryId);
-        if (params.subcategoryId) qs.set('subcategoryId', params.subcategoryId);
-        if (params.categoryId) qs.set('categoryId', params.categoryId);
-        const suffix = qs.toString() ? `?${qs}` : '';
-        return request<ItemListRow[]>(baseUrl, `/items${suffix}`);
-      },
-      getItem: (id: string) => request<ItemDetail>(baseUrl, `/items/${id}`),
-      createItem: (body: CreateItemInput) =>
-        request<ItemDetail>(baseUrl, '/items', json('POST', body)),
-      updateItem: (id: string, body: UpdateItemInput) =>
-        request<ItemDetail>(baseUrl, `/items/${id}`, json('PATCH', body)),
-      deleteItem: (id: string) =>
-        request<{ ok: true }>(baseUrl, `/items/${id}`, { method: 'DELETE' }),
-      addAttributeValue: (itemId: string, body: ItemAttributeValueInput) =>
-        request<{ id: string }>(baseUrl, `/items/${itemId}/attribute-values`, json('POST', body)),
-      removeAttributeValue: (itemId: string, valueId: string) =>
-        request<{ ok: true }>(baseUrl, `/items/${itemId}/attribute-values/${valueId}`, {
-          method: 'DELETE',
-        }),
     },
   };
 }

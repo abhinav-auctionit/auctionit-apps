@@ -29,11 +29,10 @@ const NAV: NavItem[] = [
   {
     kind: 'group',
     label: 'Inventory',
-    basePaths: ['/inventory', '/items'],
+    basePaths: ['/inventory'],
     children: [
       { kind: 'leaf', label: 'Categories', to: '/inventory/categories' },
       { kind: 'leaf', label: 'Attributes', to: '/inventory/attributes' },
-      { kind: 'leaf', label: 'Items', to: '/items' },
     ],
   },
   {

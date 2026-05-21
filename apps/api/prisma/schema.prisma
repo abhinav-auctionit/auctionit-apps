@@ -530,11 +530,13 @@ model Lot {
   id                    String            @id @default(uuid()) @db.Uuid
   auctionId             String            @map("auction_id") @db.Uuid
   lotNo                 Int               @map("lot_no")
-  itemId                String?           @map("item_id") @db.Uuid
+  microcategoryId       String            @map("microcategory_id") @db.Uuid
   itemName              String            @map("item_name") @db.VarChar(255)
   description           String?
   qty                   Decimal           @db.Decimal(14, 4)
   uom                   Uom
+  hsnCode               String            @map("hsn_code") @db.VarChar(32)
+  benchmarkCents        Int?              @map("benchmark_cents")
   auctionDate           DateTime          @map("auction_date") @db.Date
   startTime             DateTime          @map("start_time") @db.Timestamptz(6)
   endTime               DateTime          @map("end_time") @db.Timestamptz(6)
@@ -554,15 +556,17 @@ model Lot {
   createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  auction      Auction            @relation(fields: [auctionId], references: [id], onDelete: Cascade)
-  item         Item?              @relation(fields: [itemId], references: [id], onDelete: SetNull)
-  winner       User?              @relation("LotWinner", fields: [winnerId], references: [id], onDelete: SetNull)
-  bids         Bid[]
-  participants LotParticipation[]
+  auction         Auction             @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  microcategory   Microcategory       @relation(fields: [microcategoryId], references: [id], onDelete: NoAction)
+  winner          User?               @relation("LotWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+  bids            Bid[]
+  participants    LotParticipation[]
+  attributeValues LotAttributeValue[]
 
   @@unique([auctionId, lotNo], map: "lots_auction_lot_no_unique")
   @@index([auctionId], map: "lots_auction_idx")
   @@index([startTime], map: "lots_start_time_idx")
+  @@index([microcategoryId], map: "lots_microcategory_idx")
   @@map("lots")
 }
 
@@ -665,7 +669,7 @@ model Microcategory {
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   subcategory Subcategory @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
-  items       Item[]
+  lots        Lot[]
 
   @@unique([subcategoryId, name], map: "microcategories_subcategory_id_name_unique")
   @@map("microcategories")
@@ -681,8 +685,8 @@ model Attribute {
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  options             AttributeOption[]
-  itemAttributeValues ItemAttributeValue[]
+  options            AttributeOption[]
+  lotAttributeValues LotAttributeValue[]
 
   @@map("attributes")
 }
@@ -700,26 +704,9 @@ model AttributeOption {
   @@map("attribute_options")
 }
 
-model Item {
-  id              String   @id @default(uuid()) @db.Uuid
-  microcategoryId String   @map("microcategory_id") @db.Uuid
-  name            String   @db.VarChar(255)
-  uom             Uom
-  hsnCode         String   @map("hsn_code") @db.VarChar(32)
-  benchmarkCents  Int?     @map("benchmark_cents")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  microcategory   Microcategory        @relation(fields: [microcategoryId], references: [id], onDelete: NoAction)
-  attributeValues ItemAttributeValue[]
-  lots            Lot[]
-
-  @@map("items")
-}
-
-model ItemAttributeValue {
+model LotAttributeValue {
   id             String   @id @default(uuid()) @db.Uuid
-  itemId         String   @map("item_id") @db.Uuid
+  lotId          String   @map("lot_id") @db.Uuid
   attributeId    String?  @map("attribute_id") @db.Uuid
   customName     String?  @map("custom_name") @db.VarChar(255)
   valueText      String?  @map("value_text")
@@ -728,9 +715,9 @@ model ItemAttributeValue {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  item      Item       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  lot       Lot        @relation(fields: [lotId], references: [id], onDelete: Cascade)
   attribute Attribute? @relation(fields: [attributeId], references: [id], onDelete: Cascade)
 
-  @@unique([itemId, attributeId], map: "item_attribute_values_item_id_attribute_id_unique")
-  @@map("item_attribute_values")
+  @@unique([lotId, attributeId], map: "lot_attribute_values_lot_id_attribute_id_unique")
+  @@map("lot_attribute_values")
 }

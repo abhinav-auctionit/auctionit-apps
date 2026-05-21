@@ -2,13 +2,10 @@ import { createZodDto } from 'nestjs-zod';
 import {
   createAttributeSchema,
   createCategorySchema,
-  createItemSchema,
   createMicrocategorySchema,
   createSubcategorySchema,
-  itemAttributeValueInputSchema,
   updateAttributeSchema,
   updateCategorySchema,
-  updateItemSchema,
   updateMicrocategorySchema,
   updateSubcategorySchema,
 } from '@auction/types';
@@ -21,6 +18,3 @@ export class CreateMicrocategoryDto extends createZodDto(createMicrocategorySche
 export class UpdateMicrocategoryDto extends createZodDto(updateMicrocategorySchema) {}
 export class CreateAttributeDto extends createZodDto(createAttributeSchema) {}
 export class UpdateAttributeDto extends createZodDto(updateAttributeSchema) {}
-export class CreateItemDto extends createZodDto(createItemSchema) {}
-export class UpdateItemDto extends createZodDto(updateItemSchema) {}
-export class ItemAttributeValueInputDto extends createZodDto(itemAttributeValueInputSchema) {}

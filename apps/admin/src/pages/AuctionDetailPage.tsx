@@ -5,8 +5,10 @@ import { ApiError, type AuctionDetail, type Lot } from '@auction/api-client';
 import { useApiClient } from '@auction/auth';
 import {
   uomSchema,
+  type AttributeType,
   type AuctionStatus,
   type CreateLotInput,
+  type LotAttributeValueInput,
   type Uom,
 } from '@auction/types';
 import {
@@ -199,15 +201,13 @@ export function AuctionDetailPage() {
                               {l.description}
                             </div>
                           )}
-                          {l.item && (
-                            <div className="mt-1">
-                              <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                {l.item.microcategory.subcategory.category.name} ›{' '}
-                                {l.item.microcategory.subcategory.name} ›{' '}
-                                {l.item.microcategory.name}
-                              </span>
-                            </div>
-                          )}
+                          <div className="mt-1">
+                            <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                              {l.microcategory.subcategory.category.name} ›{' '}
+                              {l.microcategory.subcategory.name} ›{' '}
+                              {l.microcategory.name}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-3 py-2 text-xs text-muted-foreground">
                           {new Date(l.auctionDate).toLocaleDateString()}
@@ -607,8 +607,19 @@ function LotOutcomeCell({ auctionId, lot }: { auctionId: string; lot: Lot }) {
 
 // -- Lot dialog ----------------------------------------------------------
 
+type LotAttributeRow = {
+  uid: string;
+  attributeId: string | null;
+  customName: string;
+  attrName: string;
+  attrType: AttributeType | null;
+  attrUnit: string | null;
+  valueText: string;
+  valueNumber: string;
+  valueOptionIds: string[];
+};
+
 type LotForm = {
-  itemId: string | null;
   categoryId: string;
   subcategoryId: string;
   microcategoryId: string;
@@ -616,18 +627,20 @@ type LotForm = {
   description: string;
   qty: string;
   uom: Uom;
+  hsnCode: string;
+  benchmarkRupees: string;
   auctionDate: string;
   startTime: string;
   endTime: string;
   startingPriceRupees: string;
   bidIncrementRupees: string;
   emdRupees: string;
+  attributeValues: LotAttributeRow[];
 };
 
 const initialLotForm = (): LotForm => {
   const today = new Date().toISOString().slice(0, 10);
   return {
-    itemId: null,
     categoryId: '',
     subcategoryId: '',
     microcategoryId: '',
@@ -635,30 +648,46 @@ const initialLotForm = (): LotForm => {
     description: '',
     qty: '',
     uom: 'MT',
+    hsnCode: '',
+    benchmarkRupees: '',
     auctionDate: today,
     startTime: `${today}T10:00`,
     endTime: `${today}T11:00`,
     startingPriceRupees: '',
     bidIncrementRupees: '100',
     emdRupees: '0',
+    attributeValues: [],
   };
 };
 
 const lotToForm = (l: Lot): LotForm => ({
-  itemId: l.itemId,
-  categoryId: l.item?.microcategory.subcategory.category.id ?? '',
-  subcategoryId: l.item?.microcategory.subcategory.id ?? '',
-  microcategoryId: l.item?.microcategory.id ?? '',
+  categoryId: l.microcategory.subcategory.category.id,
+  subcategoryId: l.microcategory.subcategory.id,
+  microcategoryId: l.microcategory.id,
   itemName: l.itemName,
   description: l.description ?? '',
   qty: l.qty,
   uom: l.uom,
+  hsnCode: l.hsnCode,
+  benchmarkRupees:
+    l.benchmarkCents !== null ? String(Math.round(l.benchmarkCents / 100)) : '',
   auctionDate: l.auctionDate.slice(0, 10),
   startTime: toLocalDateTimeInput(l.startTime),
   endTime: toLocalDateTimeInput(l.endTime),
   startingPriceRupees: String(Math.round(l.startingPriceCents / 100)),
   bidIncrementRupees: String(Math.round(l.bidIncrementCents / 100)),
   emdRupees: String(l.emdAmount),
+  attributeValues: l.attributeValues.map((av) => ({
+    uid: av.id,
+    attributeId: av.attributeId,
+    customName: av.customName ?? '',
+    attrName: av.attribute?.name ?? av.customName ?? '',
+    attrType: av.attribute?.type ?? null,
+    attrUnit: av.attribute?.unit ?? null,
+    valueText: av.valueText ?? '',
+    valueNumber: av.valueNumber ?? '',
+    valueOptionIds: av.valueOptionIds ?? [],
+  })),
 });
 
 function toLocalDateTimeInput(iso: string): string {
@@ -693,11 +722,9 @@ function LotDialog({
     queryFn: () => api.inventory.listCategories(),
   });
 
-  const items = useQuery({
-    queryKey: ['admin', 'items', { microcategoryId: f.microcategoryId }],
-    queryFn: () =>
-      api.inventory.listItems({ microcategoryId: f.microcategoryId || undefined }),
-    enabled: !!f.microcategoryId,
+  const attributes = useQuery({
+    queryKey: ['admin', 'attributes'],
+    queryFn: () => api.inventory.listAttributes(),
   });
 
   const create = useMutation({
@@ -717,10 +744,27 @@ function LotDialog({
   function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!f.microcategoryId) {
+      setError('Pick a category, subcategory and microcategory');
+      return;
+    }
     const qty = Number(f.qty);
     if (!Number.isFinite(qty) || qty <= 0) {
       setError('Quantity must be greater than 0');
       return;
+    }
+    if (!f.hsnCode.trim()) {
+      setError('HSN code is required');
+      return;
+    }
+    let benchmarkCents: number | null = null;
+    if (f.benchmarkRupees.trim()) {
+      const cents = Math.round(Number(f.benchmarkRupees) * 100);
+      if (!Number.isFinite(cents) || cents < 0) {
+        setError('Benchmark price must be a non-negative number');
+        return;
+      }
+      benchmarkCents = cents;
     }
     const startCents = Math.round(Number(f.startingPriceRupees) * 100);
     const incCents = Math.round(Number(f.bidIncrementRupees) * 100);
@@ -744,18 +788,29 @@ function LotDialog({
       return;
     }
 
+    let attributeValues: LotAttributeValueInput[];
+    try {
+      attributeValues = f.attributeValues.map(rowToAttributeValueInput);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Invalid attribute value');
+      return;
+    }
+
     const payload: CreateLotInput = {
-      itemId: f.itemId,
+      microcategoryId: f.microcategoryId,
       itemName: f.itemName.trim(),
       description: f.description.trim() || null,
       qty,
       uom: f.uom,
+      hsnCode: f.hsnCode.trim(),
+      benchmarkCents,
       auctionDate: new Date(f.auctionDate),
       startTime,
       endTime,
       startingPriceCents: startCents,
       bidIncrementCents: incCents,
       emdAmount,
+      attributeValues,
     };
 
     if (mode === 'create') create.mutate(payload);
@@ -776,41 +831,21 @@ function LotDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
-          <ItemPicker
+          <MicrocategoryPicker
             categories={categories.data ?? []}
-            items={items.data ?? []}
-            itemsLoading={items.isLoading}
             categoryId={f.categoryId}
             subcategoryId={f.subcategoryId}
             microcategoryId={f.microcategoryId}
-            itemId={f.itemId}
             onCategoryChange={(id) => {
               set('categoryId', id);
               set('subcategoryId', '');
               set('microcategoryId', '');
-              set('itemId', null);
             }}
             onSubcategoryChange={(id) => {
               set('subcategoryId', id);
               set('microcategoryId', '');
-              set('itemId', null);
             }}
-            onMicrocategoryChange={(id) => {
-              set('microcategoryId', id);
-              set('itemId', null);
-            }}
-            onItemChange={(item) => {
-              if (!item) {
-                set('itemId', null);
-                return;
-              }
-              setF((prev) => ({
-                ...prev,
-                itemId: item.id,
-                itemName: item.name,
-                uom: item.uom,
-              }));
-            }}
+            onMicrocategoryChange={(id) => set('microcategoryId', id)}
           />
 
           <div className="space-y-2">
@@ -824,11 +859,6 @@ function LotDialog({
               maxLength={255}
               required
             />
-            {f.itemId && (
-              <p className="text-xs text-muted-foreground">
-                Linked to inventory item. You can override the display name above.
-              </p>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -944,6 +974,39 @@ function LotDialog({
             </div>
           </div>
 
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="hsnCode">
+                HSN code <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="hsnCode"
+                value={f.hsnCode}
+                onChange={(e) => set('hsnCode', e.target.value)}
+                maxLength={32}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="benchmark">Benchmark price (₹)</Label>
+              <Input
+                id="benchmark"
+                type="number"
+                min={0}
+                step="0.01"
+                value={f.benchmarkRupees}
+                onChange={(e) => set('benchmarkRupees', e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+          </div>
+
+          <AttributeValuesEditor
+            attributes={attributes.data ?? []}
+            values={f.attributeValues}
+            onChange={(next) => set('attributeValues', next)}
+          />
+
           <div className="space-y-2">
             <Label htmlFor="lotEmd">
               Lot EMD (₹) <span className="text-destructive">*</span>
@@ -983,7 +1046,7 @@ function LotDialog({
 // Used to give TypeScript a hint about the AuctionDetail type we operate on.
 export type _AuctionDetailFromApi = AuctionDetail;
 
-// -- Item picker -------------------------------------------------------------
+// -- Microcategory picker ----------------------------------------------------
 
 type CategoryTreeNode = {
   id: string;
@@ -995,49 +1058,32 @@ type CategoryTreeNode = {
   }[];
 };
 
-type ItemPickerOption = {
-  id: string;
-  name: string;
-  uom: Uom;
-};
-
-function ItemPicker({
+function MicrocategoryPicker({
   categories,
-  items,
-  itemsLoading,
   categoryId,
   subcategoryId,
   microcategoryId,
-  itemId,
   onCategoryChange,
   onSubcategoryChange,
   onMicrocategoryChange,
-  onItemChange,
 }: {
   categories: CategoryTreeNode[];
-  items: ItemPickerOption[];
-  itemsLoading: boolean;
   categoryId: string;
   subcategoryId: string;
   microcategoryId: string;
-  itemId: string | null;
   onCategoryChange: (id: string) => void;
   onSubcategoryChange: (id: string) => void;
   onMicrocategoryChange: (id: string) => void;
-  onItemChange: (item: ItemPickerOption | null) => void;
 }) {
   const subOptions = categories.find((c) => c.id === categoryId)?.subcategories ?? [];
   const microOptions = subOptions.find((s) => s.id === subcategoryId)?.microcategories ?? [];
-  const noneValue = '__none__';
 
   return (
     <div className="space-y-2">
-      <Label>Inventory item</Label>
-      <p className="text-xs text-muted-foreground">
-        Pick from the catalog so the lot inherits the item's category, subcategory, and
-        microcategory. Leave empty for a one-off lot.
-      </p>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <Label>
+        Category <span className="text-destructive">*</span>
+      </Label>
+      <div className="grid gap-2 sm:grid-cols-3">
         <Select value={categoryId} onValueChange={onCategoryChange}>
           <SelectTrigger>
             <SelectValue placeholder="Category" />
@@ -1098,41 +1144,271 @@ function ItemPicker({
             ))}
           </SelectContent>
         </Select>
-        <Select
-          value={itemId ?? noneValue}
-          onValueChange={(v) => {
-            if (v === noneValue) {
-              onItemChange(null);
-              return;
-            }
-            const picked = items.find((i) => i.id === v) ?? null;
-            onItemChange(picked);
-          }}
-          disabled={!microcategoryId}
-        >
-          <SelectTrigger>
-            <SelectValue
-              placeholder={
-                !microcategoryId
-                  ? 'Pick a microcategory first'
-                  : itemsLoading
-                    ? 'Loading…'
-                    : items.length === 0
-                      ? 'No items'
-                      : 'Item'
-              }
-            />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={noneValue}>No item (free-text)</SelectItem>
-            {items.map((i) => (
-              <SelectItem key={i.id} value={i.id}>
-                {i.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
     </div>
   );
+}
+
+// -- Attribute values editor -------------------------------------------------
+
+type AttributeOption = { id: string; value: string; position: number; attributeId: string };
+
+type AttributeLibraryEntry = {
+  id: string;
+  name: string;
+  type: AttributeType;
+  unit: string | null;
+  options: AttributeOption[];
+};
+
+function AttributeValuesEditor({
+  attributes,
+  values,
+  onChange,
+}: {
+  attributes: AttributeLibraryEntry[];
+  values: LotAttributeRow[];
+  onChange: (next: LotAttributeRow[]) => void;
+}) {
+  const usedIds = new Set(values.map((v) => v.attributeId).filter(Boolean) as string[]);
+  const availableAttrs = attributes.filter((a) => !usedIds.has(a.id));
+
+  function addFromLibrary(attrId: string) {
+    const attr = attributes.find((a) => a.id === attrId);
+    if (!attr) return;
+    onChange([
+      ...values,
+      {
+        uid: crypto.randomUUID(),
+        attributeId: attr.id,
+        customName: '',
+        attrName: attr.name,
+        attrType: attr.type,
+        attrUnit: attr.unit,
+        valueText: '',
+        valueNumber: '',
+        valueOptionIds: [],
+      },
+    ]);
+  }
+
+  function addCustom() {
+    onChange([
+      ...values,
+      {
+        uid: crypto.randomUUID(),
+        attributeId: null,
+        customName: '',
+        attrName: '',
+        attrType: null,
+        attrUnit: null,
+        valueText: '',
+        valueNumber: '',
+        valueOptionIds: [],
+      },
+    ]);
+  }
+
+  function updateRow(uid: string, patch: Partial<LotAttributeRow>) {
+    onChange(values.map((v) => (v.uid === uid ? { ...v, ...patch } : v)));
+  }
+
+  function removeRow(uid: string) {
+    onChange(values.filter((v) => v.uid !== uid));
+  }
+
+  const ADD_CUSTOM = '__add_custom__';
+
+  return (
+    <div className="space-y-2">
+      <Label>Attributes</Label>
+      <p className="text-xs text-muted-foreground">
+        Capture lot-specific specs. Pick from the attribute library or add a custom one.
+      </p>
+      {values.length > 0 && (
+        <div className="space-y-2 rounded-md border p-3">
+          {values.map((row) => (
+            <AttributeRow
+              key={row.uid}
+              row={row}
+              attribute={
+                row.attributeId
+                  ? attributes.find((a) => a.id === row.attributeId) ?? null
+                  : null
+              }
+              onChange={(patch) => updateRow(row.uid, patch)}
+              onRemove={() => removeRow(row.uid)}
+            />
+          ))}
+        </div>
+      )}
+      <Select
+        value=""
+        onValueChange={(v) => {
+          if (v === ADD_CUSTOM) addCustom();
+          else addFromLibrary(v);
+        }}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="+ Add attribute" />
+        </SelectTrigger>
+        <SelectContent>
+          {availableAttrs.map((a) => (
+            <SelectItem key={a.id} value={a.id}>
+              {a.name}
+              {a.unit ? ` (${a.unit})` : ''}
+            </SelectItem>
+          ))}
+          <SelectItem value={ADD_CUSTOM}>+ Custom attribute…</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function AttributeRow({
+  row,
+  attribute,
+  onChange,
+  onRemove,
+}: {
+  row: LotAttributeRow;
+  attribute: AttributeLibraryEntry | null;
+  onChange: (patch: Partial<LotAttributeRow>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-start">
+      <div>
+        {row.attributeId ? (
+          <div className="px-2 py-1.5 text-sm font-medium">
+            {row.attrName}
+            {row.attrUnit ? (
+              <span className="ml-1 text-xs text-muted-foreground">({row.attrUnit})</span>
+            ) : null}
+          </div>
+        ) : (
+          <Input
+            value={row.customName}
+            onChange={(e) => onChange({ customName: e.target.value, attrName: e.target.value })}
+            placeholder="Attribute name"
+          />
+        )}
+      </div>
+      <div>
+        <AttributeValueInput row={row} attribute={attribute} onChange={onChange} />
+      </div>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="text-destructive hover:bg-destructive/10"
+        onClick={onRemove}
+      >
+        Remove
+      </Button>
+    </div>
+  );
+}
+
+function AttributeValueInput({
+  row,
+  attribute,
+  onChange,
+}: {
+  row: LotAttributeRow;
+  attribute: AttributeLibraryEntry | null;
+  onChange: (patch: Partial<LotAttributeRow>) => void;
+}) {
+  // Custom attribute or text/number library attribute → free-form text/number.
+  if (!attribute || attribute.type === 'text') {
+    return (
+      <Input
+        value={row.valueText}
+        onChange={(e) => onChange({ valueText: e.target.value })}
+        placeholder="Value"
+      />
+    );
+  }
+  if (attribute.type === 'number') {
+    return (
+      <Input
+        type="number"
+        step="any"
+        value={row.valueNumber}
+        onChange={(e) => onChange({ valueNumber: e.target.value })}
+        placeholder="Value"
+      />
+    );
+  }
+  if (attribute.type === 'single_select') {
+    const current = row.valueOptionIds[0] ?? '';
+    return (
+      <Select
+        value={current}
+        onValueChange={(v) => onChange({ valueOptionIds: [v] })}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Pick an option" />
+        </SelectTrigger>
+        <SelectContent>
+          {attribute.options.map((o) => (
+            <SelectItem key={o.id} value={o.id}>
+              {o.value}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  }
+  // multi_select — render a list of checkboxes
+  return (
+    <div className="flex flex-wrap gap-2">
+      {attribute.options.map((o) => {
+        const checked = row.valueOptionIds.includes(o.id);
+        return (
+          <label
+            key={o.id}
+            className={`inline-flex items-center gap-1.5 rounded border px-2 py-1 text-xs ${
+              checked ? 'bg-foreground text-background' : 'bg-background'
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(e) => {
+                const next = e.target.checked
+                  ? [...row.valueOptionIds, o.id]
+                  : row.valueOptionIds.filter((id) => id !== o.id);
+                onChange({ valueOptionIds: next });
+              }}
+            />
+            {o.value}
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+function rowToAttributeValueInput(row: LotAttributeRow): LotAttributeValueInput {
+  const base = row.attributeId
+    ? { attributeId: row.attributeId }
+    : { customName: row.customName.trim() };
+  if (!row.attributeId && !row.customName.trim()) {
+    throw new Error('Custom attribute needs a name');
+  }
+  if (!row.attrType || row.attrType === 'text') {
+    if (!row.valueText.trim()) throw new Error(`Attribute "${row.attrName}" needs a value`);
+    return { ...base, valueText: row.valueText.trim() };
+  }
+  if (row.attrType === 'number') {
+    const n = Number(row.valueNumber);
+    if (!Number.isFinite(n)) throw new Error(`Attribute "${row.attrName}" needs a numeric value`);
+    return { ...base, valueNumber: n };
+  }
+  if (!row.valueOptionIds.length) {
+    throw new Error(`Attribute "${row.attrName}" needs a selection`);
+  }
+  return { ...base, valueOptionIds: row.valueOptionIds };
 }

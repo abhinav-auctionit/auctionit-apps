@@ -15,12 +15,12 @@ export class AttributesService {
       orderBy: [{ position: 'asc' }, { name: 'asc' }],
       include: {
         options: { orderBy: [{ position: 'asc' }, { value: 'asc' }] },
-        _count: { select: { itemAttributeValues: true } },
+        _count: { select: { lotAttributeValues: true } },
       },
     });
     return rows.map(({ _count, ...attr }) => ({
       ...attr,
-      usedIn: _count.itemAttributeValues,
+      usedIn: _count.lotAttributeValues,
     }));
   }
 

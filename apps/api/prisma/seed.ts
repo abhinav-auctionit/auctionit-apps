@@ -108,8 +108,7 @@ async function seedDemo(prisma: PrismaClient) {
   const passwordHash = await hash(DEMO_PASSWORD, argonOpts);
 
   // Pick three real microcategories from the taxonomy for the demo lots.
-  // Falls back to the first three rows if names ever change.
-  const DEMO_ITEM_SPECS: { category: string; sub: string; micro: string; hsn: string }[] = [
+  const DEMO_LOT_SPECS: { category: string; sub: string; micro: string; hsn: string }[] = [
     { category: 'MS Scrap', sub: 'MS Melting Scrap', micro: 'Heavy Scrap', hsn: '7204' },
     { category: 'Cast Iron & DI', sub: 'Cast Iron', micro: 'CI Scrap', hsn: '7204' },
     { category: 'MS Scrap', sub: 'MS Process Scrap', micro: 'Turning/Boring/Chips', hsn: '7204' },
@@ -121,8 +120,12 @@ async function seedDemo(prisma: PrismaClient) {
     create: { name: 'Grade', type: 'text' },
   });
 
-  const items: { id: string; name: string; uom: 'MT' }[] = [];
-  for (const spec of DEMO_ITEM_SPECS) {
+  const lotSpecs: {
+    microcategoryId: string;
+    itemName: string;
+    hsnCode: string;
+  }[] = [];
+  for (const spec of DEMO_LOT_SPECS) {
     const micro = await prisma.microcategory.findFirst({
       where: {
         name: spec.micro,
@@ -133,23 +136,11 @@ async function seedDemo(prisma: PrismaClient) {
     if (!micro) {
       throw new Error(`demo microcategory not found: ${spec.category} > ${spec.sub} > ${spec.micro}`);
     }
-    const itemName = `${spec.micro} (Demo)`;
-    const existing = await prisma.item.findFirst({
-      where: { microcategoryId: micro.id, name: itemName },
-      select: { id: true, name: true, uom: true },
+    lotSpecs.push({
+      microcategoryId: micro.id,
+      itemName: `${spec.micro} (Demo)`,
+      hsnCode: spec.hsn,
     });
-    const item =
-      existing ??
-      (await prisma.item.create({
-        data: {
-          microcategoryId: micro.id,
-          name: itemName,
-          uom: 'MT',
-          hsnCode: spec.hsn,
-        },
-        select: { id: true, name: true, uom: true },
-      }));
-    items.push({ id: item.id, name: item.name, uom: 'MT' });
   }
 
   const client = await prisma.client.upsert({
@@ -254,8 +245,9 @@ async function seedDemo(prisma: PrismaClient) {
   const baseStart = new Date();
   baseStart.setDate(baseStart.getDate() + 1);
   baseStart.setHours(11, 0, 0, 0);
-  for (let i = 0; i < items.length; i++) {
+  for (let i = 0; i < lotSpecs.length; i++) {
     const lotNo = i + 1;
+    const spec = lotSpecs[i];
     const startTime = new Date(baseStart.getTime() + i * 30 * 60_000);
     const endTime = new Date(startTime.getTime() + 30 * 60_000);
     await prisma.lot.upsert({
@@ -264,10 +256,11 @@ async function seedDemo(prisma: PrismaClient) {
       create: {
         auctionId: auction.id,
         lotNo,
-        itemId: items[i].id,
-        itemName: items[i].name,
+        microcategoryId: spec.microcategoryId,
+        itemName: spec.itemName,
         qty: new Prisma.Decimal(50),
-        uom: items[i].uom,
+        uom: 'MT',
+        hsnCode: spec.hsnCode,
         auctionDate: startTime,
         startTime,
         endTime,
@@ -279,7 +272,7 @@ async function seedDemo(prisma: PrismaClient) {
   }
 
   console.log(
-    `seeded demo: client=${client.companyName}, bidders=${DEMO_BIDDER_COUNT}, lots=${items.length} (password: ${DEMO_PASSWORD})`,
+    `seeded demo: client=${client.companyName}, bidders=${DEMO_BIDDER_COUNT}, lots=${lotSpecs.length} (password: ${DEMO_PASSWORD})`,
   );
 }
 

@@ -11,13 +11,8 @@ const sections = [
   },
   {
     title: 'Attributes',
-    description: 'The reusable attribute library used across items.',
+    description: 'The reusable attribute library used across lots.',
     to: '/inventory/attributes',
-  },
-  {
-    title: 'Items',
-    description: 'Catalog of sellable items, attached to a microcategory.',
-    to: '/items',
   },
   {
     title: 'Create user',
