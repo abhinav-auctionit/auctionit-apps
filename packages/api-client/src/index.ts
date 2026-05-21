@@ -11,6 +11,7 @@ import type {
   CreateAttributeInput,
   CreateCategoryInput,
   CreateItemInput,
+  CreateMicrocategoryInput,
   CreateSubcategoryInput,
   CreateUserInput,
   InterestedIn,
@@ -98,12 +99,27 @@ async function request<T>(baseUrl: string, path: string, init?: RequestInit): Pr
   return payload as T;
 }
 
+export type MicrocategorySummary = {
+  id: string;
+  name: string;
+  position: number;
+  itemCount: number;
+};
+
+export type SubcategoryWithMicrocategories = {
+  id: string;
+  name: string;
+  position: number;
+  itemCount: number;
+  microcategories: MicrocategorySummary[];
+};
+
 export type CategoryWithSubcategories = {
   id: string;
   name: string;
   position: number;
   itemCount: number;
-  subcategories: { id: string; name: string; position: number; itemCount: number }[];
+  subcategories: SubcategoryWithMicrocategories[];
 };
 
 export type AttributeOption = { id: string; attributeId: string; value: string; position: number };
@@ -137,6 +153,8 @@ export type ItemListRow = {
   uom: Uom;
   hsnCode: string;
   benchmarkCents: number | null;
+  microcategoryId: string;
+  microcategoryName: string;
   subcategoryId: string;
   subcategoryName: string;
   categoryId: string;
@@ -383,10 +401,14 @@ export type LotItemRef = {
   id: string;
   name: string;
   uom: Uom;
-  subcategory: {
+  microcategory: {
     id: string;
     name: string;
-    category: { id: string; name: string };
+    subcategory: {
+      id: string;
+      name: string;
+      category: { id: string; name: string };
+    };
   };
 };
 
@@ -943,10 +965,17 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
         request<{ id: string }>(baseUrl, `/subcategories/${id}`, json('PATCH', body)),
       deleteSubcategory: (id: string) =>
         request<{ ok: true }>(baseUrl, `/subcategories/${id}`, { method: 'DELETE' }),
-      suggestedAttributes: (subcategoryId: string) =>
+
+      createMicrocategory: (body: CreateMicrocategoryInput) =>
+        request<{ id: string }>(baseUrl, '/microcategories', json('POST', body)),
+      updateMicrocategory: (id: string, body: { name?: string }) =>
+        request<{ id: string }>(baseUrl, `/microcategories/${id}`, json('PATCH', body)),
+      deleteMicrocategory: (id: string) =>
+        request<{ ok: true }>(baseUrl, `/microcategories/${id}`, { method: 'DELETE' }),
+      suggestedAttributes: (microcategoryId: string) =>
         request<SuggestedAttributesResponse>(
           baseUrl,
-          `/subcategories/${subcategoryId}/suggested-attributes`,
+          `/microcategories/${microcategoryId}/suggested-attributes`,
         ),
 
       listAttributes: () => request<AttributeListItem[]>(baseUrl, '/attributes'),
@@ -958,8 +987,11 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
       deleteAttribute: (id: string) =>
         request<{ ok: true }>(baseUrl, `/attributes/${id}`, { method: 'DELETE' }),
 
-      listItems: (params: { subcategoryId?: string; categoryId?: string } = {}) => {
+      listItems: (
+        params: { microcategoryId?: string; subcategoryId?: string; categoryId?: string } = {},
+      ) => {
         const qs = new URLSearchParams();
+        if (params.microcategoryId) qs.set('microcategoryId', params.microcategoryId);
         if (params.subcategoryId) qs.set('subcategoryId', params.subcategoryId);
         if (params.categoryId) qs.set('categoryId', params.categoryId);
         const suffix = qs.toString() ? `?${qs}` : '';

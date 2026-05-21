@@ -32,11 +32,17 @@ const LOT_ITEM_SELECT = {
   id: true,
   name: true,
   uom: true,
-  subcategory: {
+  microcategory: {
     select: {
       id: true,
       name: true,
-      category: { select: { id: true, name: true } },
+      subcategory: {
+        select: {
+          id: true,
+          name: true,
+          category: { select: { id: true, name: true } },
+        },
+      },
     },
   },
 } satisfies Prisma.ItemSelect;

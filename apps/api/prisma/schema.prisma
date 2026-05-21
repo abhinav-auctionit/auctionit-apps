@@ -649,11 +649,26 @@ model Subcategory {
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  items    Item[]
+  category       Category        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  microcategories Microcategory[]
 
   @@unique([categoryId, name], map: "subcategories_category_id_name_unique")
   @@map("subcategories")
+}
+
+model Microcategory {
+  id            String   @id @default(uuid()) @db.Uuid
+  subcategoryId String   @map("subcategory_id") @db.Uuid
+  name          String   @db.VarChar(255)
+  position      Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  subcategory Subcategory @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
+  items       Item[]
+
+  @@unique([subcategoryId, name], map: "microcategories_subcategory_id_name_unique")
+  @@map("microcategories")
 }
 
 model Attribute {
@@ -686,16 +701,16 @@ model AttributeOption {
 }
 
 model Item {
-  id             String   @id @default(uuid()) @db.Uuid
-  subcategoryId  String   @map("subcategory_id") @db.Uuid
-  name           String   @db.VarChar(255)
-  uom            Uom
-  hsnCode        String   @map("hsn_code") @db.VarChar(32)
-  benchmarkCents Int?     @map("benchmark_cents")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id              String   @id @default(uuid()) @db.Uuid
+  microcategoryId String   @map("microcategory_id") @db.Uuid
+  name            String   @db.VarChar(255)
+  uom             Uom
+  hsnCode         String   @map("hsn_code") @db.VarChar(32)
+  benchmarkCents  Int?     @map("benchmark_cents")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  subcategory     Subcategory          @relation(fields: [subcategoryId], references: [id], onDelete: NoAction)
+  microcategory   Microcategory        @relation(fields: [microcategoryId], references: [id], onDelete: NoAction)
   attributeValues ItemAttributeValue[]
   lots            Lot[]
 

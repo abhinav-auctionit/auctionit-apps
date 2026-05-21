@@ -1,7 +1,11 @@
 import { useState, type FormEvent, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ApiError, type CategoryWithSubcategories } from '@auction/api-client';
+import {
+  ApiError,
+  type CategoryWithSubcategories,
+  type SubcategoryWithMicrocategories,
+} from '@auction/api-client';
 import { useApiClient } from '@auction/auth';
 import {
   Button,
@@ -25,16 +29,28 @@ const KEY = ['inventory', 'categories'] as const;
 
 type DeleteTarget =
   | { kind: 'category'; id: string; name: string }
-  | { kind: 'subcategory'; id: string; name: string; categoryName: string };
+  | { kind: 'subcategory'; id: string; name: string; categoryName: string }
+  | {
+      kind: 'microcategory';
+      id: string;
+      name: string;
+      subcategoryName: string;
+      categoryName: string;
+    };
 
 export function CategoriesPage() {
   const api = useApiClient();
   const qc = useQueryClient();
   const cats = useQuery({ queryKey: KEY, queryFn: () => api.inventory.listCategories() });
 
+  // Single expansion set covers both categories and subcategories — IDs are
+  // UUIDs and won't collide across levels.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [openCat, setOpenCat] = useState(false);
   const [openSubFor, setOpenSubFor] = useState<{ id: string; name: string } | null>(null);
+  const [openMicroFor, setOpenMicroFor] = useState<
+    { id: string; name: string; categoryName: string } | null
+  >(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   function toggle(id: string) {
@@ -58,21 +74,42 @@ export function CategoriesPage() {
     mutationFn: (id: string) => api.inventory.deleteSubcategory(id),
     onSuccess: invalidate,
   });
+  const deleteMicrocategoryMutation = useMutation({
+    mutationFn: (id: string) => api.inventory.deleteMicrocategory(id),
+    onSuccess: invalidate,
+  });
 
   async function handleDeleteConfirm() {
     if (!deleteTarget) return;
     if (deleteTarget.kind === 'category') {
       await deleteCategoryMutation.mutateAsync(deleteTarget.id);
-    } else {
+    } else if (deleteTarget.kind === 'subcategory') {
       await deleteSubcategoryMutation.mutateAsync(deleteTarget.id);
+    } else {
+      await deleteMicrocategoryMutation.mutateAsync(deleteTarget.id);
     }
     setDeleteTarget(null);
   }
 
   const deleteBusy =
-    deleteCategoryMutation.isPending || deleteSubcategoryMutation.isPending;
+    deleteCategoryMutation.isPending ||
+    deleteSubcategoryMutation.isPending ||
+    deleteMicrocategoryMutation.isPending;
   const deleteError: Error | null =
-    deleteCategoryMutation.error ?? deleteSubcategoryMutation.error ?? null;
+    deleteCategoryMutation.error ??
+    deleteSubcategoryMutation.error ??
+    deleteMicrocategoryMutation.error ??
+    null;
+
+  const summary = cats.data
+    ? `${cats.data.length} categor${cats.data.length === 1 ? 'y' : 'ies'} · ${cats.data.reduce(
+        (n, c) => n + c.subcategories.length,
+        0,
+      )} subcategories · ${cats.data.reduce(
+        (n, c) => n + c.subcategories.reduce((m, s) => m + s.microcategories.length, 0),
+        0,
+      )} microcategories`
+    : 'Loading…';
 
   return (
     <AppShell>
@@ -80,14 +117,7 @@ export function CategoriesPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold">Categories</h1>
-            <p className="text-sm text-muted-foreground">
-              {cats.data
-                ? `${cats.data.length} categor${cats.data.length === 1 ? 'y' : 'ies'} · ${cats.data.reduce(
-                    (n, c) => n + c.subcategories.length,
-                    0,
-                  )} subcategories`
-                : 'Loading…'}
-            </p>
+            <p className="text-sm text-muted-foreground">{summary}</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setExpanded(new Set())}>
@@ -96,9 +126,14 @@ export function CategoriesPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() =>
-                setExpanded(new Set((cats.data ?? []).map((c) => c.id)))
-              }
+              onClick={() => {
+                const all = new Set<string>();
+                (cats.data ?? []).forEach((c) => {
+                  all.add(c.id);
+                  c.subcategories.forEach((s) => all.add(s.id));
+                });
+                setExpanded(all);
+              }}
             >
               Expand all
             </Button>
@@ -129,9 +164,12 @@ export function CategoriesPage() {
               <CategoryNode
                 key={c.id}
                 category={c}
-                expanded={expanded.has(c.id)}
-                onToggle={() => toggle(c.id)}
+                expanded={expanded}
+                onToggle={toggle}
                 onAddSubcategory={() => setOpenSubFor({ id: c.id, name: c.name })}
+                onAddMicrocategory={(s) =>
+                  setOpenMicroFor({ id: s.id, name: s.name, categoryName: c.name })
+                }
                 onDeleteCategory={() =>
                   setDeleteTarget({ kind: 'category', id: c.id, name: c.name })
                 }
@@ -140,6 +178,15 @@ export function CategoriesPage() {
                     kind: 'subcategory',
                     id: s.id,
                     name: s.name,
+                    categoryName: c.name,
+                  })
+                }
+                onDeleteMicrocategory={(s, m) =>
+                  setDeleteTarget({
+                    kind: 'microcategory',
+                    id: m.id,
+                    name: m.name,
+                    subcategoryName: s.name,
                     categoryName: c.name,
                   })
                 }
@@ -162,8 +209,6 @@ export function CategoriesPage() {
         onOpenChange={setOpenCat}
         onCreated={(id) => {
           invalidate();
-          // Auto-expand the freshly created category so the user sees the
-          // empty subcategory slot immediately.
           setExpanded((prev) => new Set(prev).add(id));
         }}
       />
@@ -174,6 +219,14 @@ export function CategoriesPage() {
         onOpenChange={(open) => !open && setOpenSubFor(null)}
         onCreated={invalidate}
       />
+      <MicrocategoryDialog
+        open={!!openMicroFor}
+        subcategoryId={openMicroFor?.id ?? null}
+        subcategoryName={openMicroFor?.name ?? ''}
+        categoryName={openMicroFor?.categoryName ?? ''}
+        onOpenChange={(open) => !open && setOpenMicroFor(null)}
+        onCreated={invalidate}
+      />
 
       <Dialog
         open={!!deleteTarget}
@@ -182,6 +235,7 @@ export function CategoriesPage() {
             setDeleteTarget(null);
             deleteCategoryMutation.reset();
             deleteSubcategoryMutation.reset();
+            deleteMicrocategoryMutation.reset();
           }
         }}
       >
@@ -189,7 +243,12 @@ export function CategoriesPage() {
           <DialogHeader>
             <DialogTitle>
               Delete{' '}
-              {deleteTarget?.kind === 'category' ? 'category' : 'subcategory'}?
+              {deleteTarget?.kind === 'category'
+                ? 'category'
+                : deleteTarget?.kind === 'subcategory'
+                  ? 'subcategory'
+                  : 'microcategory'}
+              ?
             </DialogTitle>
             <DialogDescription>
               {deleteTarget?.kind === 'category' ? (
@@ -201,6 +260,14 @@ export function CategoriesPage() {
                 <>
                   This permanently removes <strong>{deleteTarget.name}</strong> from{' '}
                   <strong>{deleteTarget.categoryName}</strong>.
+                </>
+              ) : deleteTarget?.kind === 'microcategory' ? (
+                <>
+                  This permanently removes <strong>{deleteTarget.name}</strong> from{' '}
+                  <strong>
+                    {deleteTarget.categoryName} › {deleteTarget.subcategoryName}
+                  </strong>
+                  .
                 </>
               ) : null}
             </DialogDescription>
@@ -239,29 +306,35 @@ function CategoryNode({
   expanded,
   onToggle,
   onAddSubcategory,
+  onAddMicrocategory,
   onDeleteCategory,
   onDeleteSubcategory,
+  onDeleteMicrocategory,
 }: {
   category: CategoryWithSubcategories;
-  expanded: boolean;
-  onToggle: () => void;
+  expanded: Set<string>;
+  onToggle: (id: string) => void;
   onAddSubcategory: () => void;
+  onAddMicrocategory: (s: SubcategoryWithMicrocategories) => void;
   onDeleteCategory: () => void;
   onDeleteSubcategory: (s: { id: string; name: string }) => void;
+  onDeleteMicrocategory: (
+    s: { id: string; name: string },
+    m: { id: string; name: string },
+  ) => void;
 }) {
+  const isOpen = expanded.has(category.id);
   const canDeleteCategory = category.subcategories.length === 0;
   return (
     <div>
-      <div
-        className="group flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-secondary"
-      >
+      <div className="group flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-secondary">
         <button
           type="button"
-          onClick={onToggle}
+          onClick={() => onToggle(category.id)}
           className="flex flex-1 items-center gap-2 text-left"
-          aria-expanded={expanded}
+          aria-expanded={isOpen}
         >
-          <Chevron expanded={expanded} />
+          <Chevron expanded={isOpen} />
           <span className="flex-1 truncate font-medium">{category.name}</span>
         </button>
         <span className="shrink-0 text-xs text-muted-foreground">
@@ -280,15 +353,15 @@ function CategoryNode({
       </div>
 
       <div
-        aria-hidden={!expanded}
+        aria-hidden={!isOpen}
         className={cn(
           'grid transition-[grid-template-rows] duration-200 ease-out',
-          expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+          isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
         )}
       >
         <div className="overflow-hidden">
           <ul
-            key={expanded ? 'open' : 'closed'}
+            key={isOpen ? 'open' : 'closed'}
             className="ml-6 mt-0.5 space-y-0.5 border-l border-border pl-2"
           >
             {category.subcategories.length === 0 && (
@@ -297,30 +370,16 @@ function CategoryNode({
               </li>
             )}
             {category.subcategories.map((s, i) => (
-              <li
+              <SubcategoryNode
                 key={s.id}
-                style={{ animationDelay: `${i * 25}ms` }}
-                className="group flex animate-in items-center gap-2 rounded-md fade-in slide-in-from-top-1 duration-200 fill-mode-both transition-colors hover:bg-secondary"
-              >
-                <Link
-                  to={`/items?subcategoryId=${s.id}`}
-                  className="flex flex-1 items-center justify-between px-3 py-1.5 text-sm"
-                >
-                  <span className="truncate">{s.name}</span>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {s.itemCount}
-                  </span>
-                </Link>
-                {s.itemCount === 0 && (
-                  <DeleteIconButton
-                    label={`Delete subcategory "${s.name}"`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteSubcategory(s);
-                    }}
-                  />
-                )}
-              </li>
+                subcategory={s}
+                index={i}
+                expanded={expanded}
+                onToggle={onToggle}
+                onAddMicrocategory={() => onAddMicrocategory(s)}
+                onDeleteSubcategory={() => onDeleteSubcategory(s)}
+                onDeleteMicrocategory={(m) => onDeleteMicrocategory(s, m)}
+              />
             ))}
             <li
               style={{ animationDelay: `${category.subcategories.length * 25}ms` }}
@@ -341,6 +400,119 @@ function CategoryNode({
         </div>
       </div>
     </div>
+  );
+}
+
+function SubcategoryNode({
+  subcategory,
+  index,
+  expanded,
+  onToggle,
+  onAddMicrocategory,
+  onDeleteSubcategory,
+  onDeleteMicrocategory,
+}: {
+  subcategory: SubcategoryWithMicrocategories;
+  index: number;
+  expanded: Set<string>;
+  onToggle: (id: string) => void;
+  onAddMicrocategory: () => void;
+  onDeleteSubcategory: () => void;
+  onDeleteMicrocategory: (m: { id: string; name: string }) => void;
+}) {
+  const isOpen = expanded.has(subcategory.id);
+  const canDeleteSub =
+    subcategory.microcategories.length === 0 && subcategory.itemCount === 0;
+  return (
+    <li
+      style={{ animationDelay: `${index * 25}ms` }}
+      className="animate-in fade-in slide-in-from-top-1 duration-200 fill-mode-both"
+    >
+      <div className="group flex items-center gap-2 rounded-md transition-colors hover:bg-secondary">
+        <button
+          type="button"
+          onClick={() => onToggle(subcategory.id)}
+          aria-expanded={isOpen}
+          className="flex flex-1 items-center gap-2 px-3 py-1.5 text-left text-sm"
+        >
+          <Chevron expanded={isOpen} />
+          <span className="flex-1 truncate">{subcategory.name}</span>
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {subcategory.microcategories.length} micro · {subcategory.itemCount} item
+            {subcategory.itemCount === 1 ? '' : 's'}
+          </span>
+        </button>
+        {canDeleteSub && (
+          <DeleteIconButton
+            label={`Delete subcategory "${subcategory.name}"`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteSubcategory();
+            }}
+          />
+        )}
+      </div>
+
+      <div
+        aria-hidden={!isOpen}
+        className={cn(
+          'grid transition-[grid-template-rows] duration-200 ease-out',
+          isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+        )}
+      >
+        <div className="overflow-hidden">
+          <ul
+            key={isOpen ? 'open' : 'closed'}
+            className="ml-6 mt-0.5 space-y-0.5 border-l border-border pl-2"
+          >
+            {subcategory.microcategories.length === 0 && (
+              <li className="animate-in fade-in slide-in-from-top-1 px-3 py-1.5 text-xs text-muted-foreground duration-200 fill-mode-both">
+                No microcategories yet.
+              </li>
+            )}
+            {subcategory.microcategories.map((m, j) => (
+              <li
+                key={m.id}
+                style={{ animationDelay: `${j * 25}ms` }}
+                className="group flex animate-in items-center gap-2 rounded-md fade-in slide-in-from-top-1 duration-200 fill-mode-both transition-colors hover:bg-secondary"
+              >
+                <Link
+                  to={`/items?microcategoryId=${m.id}`}
+                  className="flex flex-1 items-center justify-between px-3 py-1.5 text-sm"
+                >
+                  <span className="truncate">{m.name}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{m.itemCount}</span>
+                </Link>
+                {m.itemCount === 0 && (
+                  <DeleteIconButton
+                    label={`Delete microcategory "${m.name}"`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteMicrocategory(m);
+                    }}
+                  />
+                )}
+              </li>
+            ))}
+            <li
+              style={{ animationDelay: `${subcategory.microcategories.length * 25}ms` }}
+              className="animate-in fade-in slide-in-from-top-1 duration-200 fill-mode-both"
+            >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddMicrocategory();
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <span aria-hidden="true">+</span> Add microcategory
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </li>
   );
 }
 
@@ -510,6 +682,79 @@ function SubcategoryDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={mutation.isPending || !categoryId}>
+              {mutation.isPending ? 'Creating…' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MicrocategoryDialog({
+  open,
+  subcategoryId,
+  subcategoryName,
+  categoryName,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean;
+  subcategoryId: string | null;
+  subcategoryName: string;
+  categoryName: string;
+  onOpenChange: (open: boolean) => void;
+  onCreated: () => void;
+}) {
+  const api = useApiClient();
+  const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: (input: { subcategoryId: string; name: string }) =>
+      api.inventory.createMicrocategory(input),
+    onSuccess: () => {
+      setName('');
+      onCreated();
+      onOpenChange(false);
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : 'Failed to create'),
+  });
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!subcategoryId || !name.trim()) return;
+    mutation.mutate({ subcategoryId, name: name.trim() });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>New microcategory</DialogTitle>
+          <DialogDescription>
+            {subcategoryName
+              ? `Adding to ${categoryName} › ${subcategoryName}.`
+              : 'Pick a subcategory first.'}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="micro-name">Name</Label>
+            <Input
+              id="micro-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={mutation.isPending || !subcategoryId}>
               {mutation.isPending ? 'Creating…' : 'Create'}
             </Button>
           </DialogFooter>

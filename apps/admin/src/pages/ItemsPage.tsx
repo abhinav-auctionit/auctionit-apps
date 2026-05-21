@@ -20,6 +20,7 @@ import { AppShell } from '../components/AppShell';
 export function ItemsPage() {
   const api = useApiClient();
   const [params, setParams] = useSearchParams();
+  const microcategoryId = params.get('microcategoryId') ?? undefined;
   const subcategoryId = params.get('subcategoryId') ?? undefined;
   const categoryId = params.get('categoryId') ?? undefined;
 
@@ -28,18 +29,32 @@ export function ItemsPage() {
     queryFn: () => api.inventory.listCategories(),
   });
   const items = useQuery({
-    queryKey: ['inventory', 'items', { subcategoryId, categoryId }],
-    queryFn: () => api.inventory.listItems({ subcategoryId, categoryId }),
+    queryKey: ['inventory', 'items', { microcategoryId, subcategoryId, categoryId }],
+    queryFn: () => api.inventory.listItems({ microcategoryId, subcategoryId, categoryId }),
   });
 
-  const subcategoryName = useMemo(() => {
-    if (!subcategoryId || !cats.data) return null;
-    for (const c of cats.data) {
-      const s = c.subcategories.find((s) => s.id === subcategoryId);
-      if (s) return `${c.name} › ${s.name}`;
+  const filterLabel = useMemo(() => {
+    if (!cats.data) return null;
+    if (microcategoryId) {
+      for (const c of cats.data) {
+        for (const s of c.subcategories) {
+          const m = s.microcategories.find((m) => m.id === microcategoryId);
+          if (m) return `${c.name} › ${s.name} › ${m.name}`;
+        }
+      }
+    }
+    if (subcategoryId) {
+      for (const c of cats.data) {
+        const s = c.subcategories.find((s) => s.id === subcategoryId);
+        if (s) return `${c.name} › ${s.name}`;
+      }
+    }
+    if (categoryId) {
+      const c = cats.data.find((c) => c.id === categoryId);
+      if (c) return c.name;
     }
     return null;
-  }, [cats.data, subcategoryId]);
+  }, [cats.data, microcategoryId, subcategoryId, categoryId]);
 
   function clearFilters() {
     setParams({});
@@ -58,8 +73,8 @@ export function ItemsPage() {
                 </span>
               )}
             </h1>
-            {subcategoryName && (
-              <p className="text-sm text-muted-foreground">Filtered by {subcategoryName}</p>
+            {filterLabel && (
+              <p className="text-sm text-muted-foreground">Filtered by {filterLabel}</p>
             )}
           </div>
           <Link to="/items/new">
@@ -70,7 +85,7 @@ export function ItemsPage() {
         {/* Category chips */}
         <div className="flex flex-wrap gap-2">
           <FilterChip
-            active={!subcategoryId && !categoryId}
+            active={!microcategoryId && !subcategoryId && !categoryId}
             onClick={() => setParams({})}
           >
             All
@@ -86,11 +101,11 @@ export function ItemsPage() {
           ))}
         </div>
 
-        {(subcategoryId || categoryId) && (
+        {(microcategoryId || subcategoryId || categoryId) && (
           <div className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Active filter:</span>
             <Badge variant="secondary" className="gap-1">
-              {subcategoryName ?? cats.data?.find((c) => c.id === categoryId)?.name}
+              {filterLabel}
               <button
                 onClick={clearFilters}
                 className="ml-1 text-muted-foreground hover:text-foreground"
@@ -142,7 +157,7 @@ export function ItemsPage() {
                       <Link to={`/items/${it.id}`} className="block">
                         <div className="font-medium">{it.name}</div>
                         <div className="text-xs text-muted-foreground">
-                          {it.categoryName} › {it.subcategoryName}
+                          {it.categoryName} › {it.subcategoryName} › {it.microcategoryName}
                         </div>
                       </Link>
                     </TableCell>

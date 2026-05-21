@@ -202,8 +202,9 @@ export function AuctionDetailPage() {
                           {l.item && (
                             <div className="mt-1">
                               <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                {l.item.subcategory.category.name} ›{' '}
-                                {l.item.subcategory.name}
+                                {l.item.microcategory.subcategory.category.name} ›{' '}
+                                {l.item.microcategory.subcategory.name} ›{' '}
+                                {l.item.microcategory.name}
                               </span>
                             </div>
                           )}
@@ -610,6 +611,7 @@ type LotForm = {
   itemId: string | null;
   categoryId: string;
   subcategoryId: string;
+  microcategoryId: string;
   itemName: string;
   description: string;
   qty: string;
@@ -628,6 +630,7 @@ const initialLotForm = (): LotForm => {
     itemId: null,
     categoryId: '',
     subcategoryId: '',
+    microcategoryId: '',
     itemName: '',
     description: '',
     qty: '',
@@ -643,8 +646,9 @@ const initialLotForm = (): LotForm => {
 
 const lotToForm = (l: Lot): LotForm => ({
   itemId: l.itemId,
-  categoryId: l.item?.subcategory.category.id ?? '',
-  subcategoryId: l.item?.subcategory.id ?? '',
+  categoryId: l.item?.microcategory.subcategory.category.id ?? '',
+  subcategoryId: l.item?.microcategory.subcategory.id ?? '',
+  microcategoryId: l.item?.microcategory.id ?? '',
   itemName: l.itemName,
   description: l.description ?? '',
   qty: l.qty,
@@ -690,10 +694,10 @@ function LotDialog({
   });
 
   const items = useQuery({
-    queryKey: ['admin', 'items', { subcategoryId: f.subcategoryId }],
+    queryKey: ['admin', 'items', { microcategoryId: f.microcategoryId }],
     queryFn: () =>
-      api.inventory.listItems({ subcategoryId: f.subcategoryId || undefined }),
-    enabled: !!f.subcategoryId,
+      api.inventory.listItems({ microcategoryId: f.microcategoryId || undefined }),
+    enabled: !!f.microcategoryId,
   });
 
   const create = useMutation({
@@ -778,14 +782,21 @@ function LotDialog({
             itemsLoading={items.isLoading}
             categoryId={f.categoryId}
             subcategoryId={f.subcategoryId}
+            microcategoryId={f.microcategoryId}
             itemId={f.itemId}
             onCategoryChange={(id) => {
               set('categoryId', id);
               set('subcategoryId', '');
+              set('microcategoryId', '');
               set('itemId', null);
             }}
             onSubcategoryChange={(id) => {
               set('subcategoryId', id);
+              set('microcategoryId', '');
+              set('itemId', null);
+            }}
+            onMicrocategoryChange={(id) => {
+              set('microcategoryId', id);
               set('itemId', null);
             }}
             onItemChange={(item) => {
@@ -977,7 +988,11 @@ export type _AuctionDetailFromApi = AuctionDetail;
 type CategoryTreeNode = {
   id: string;
   name: string;
-  subcategories: { id: string; name: string }[];
+  subcategories: {
+    id: string;
+    name: string;
+    microcategories: { id: string; name: string }[];
+  }[];
 };
 
 type ItemPickerOption = {
@@ -992,9 +1007,11 @@ function ItemPicker({
   itemsLoading,
   categoryId,
   subcategoryId,
+  microcategoryId,
   itemId,
   onCategoryChange,
   onSubcategoryChange,
+  onMicrocategoryChange,
   onItemChange,
 }: {
   categories: CategoryTreeNode[];
@@ -1002,22 +1019,25 @@ function ItemPicker({
   itemsLoading: boolean;
   categoryId: string;
   subcategoryId: string;
+  microcategoryId: string;
   itemId: string | null;
   onCategoryChange: (id: string) => void;
   onSubcategoryChange: (id: string) => void;
+  onMicrocategoryChange: (id: string) => void;
   onItemChange: (item: ItemPickerOption | null) => void;
 }) {
   const subOptions = categories.find((c) => c.id === categoryId)?.subcategories ?? [];
+  const microOptions = subOptions.find((s) => s.id === subcategoryId)?.microcategories ?? [];
   const noneValue = '__none__';
 
   return (
     <div className="space-y-2">
       <Label>Inventory item</Label>
       <p className="text-xs text-muted-foreground">
-        Pick from the catalog so the lot inherits the item's category and subcategory. Leave
-        empty for a one-off lot.
+        Pick from the catalog so the lot inherits the item's category, subcategory, and
+        microcategory. Leave empty for a one-off lot.
       </p>
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <Select value={categoryId} onValueChange={onCategoryChange}>
           <SelectTrigger>
             <SelectValue placeholder="Category" />
@@ -1055,6 +1075,30 @@ function ItemPicker({
           </SelectContent>
         </Select>
         <Select
+          value={microcategoryId}
+          onValueChange={onMicrocategoryChange}
+          disabled={!subcategoryId}
+        >
+          <SelectTrigger>
+            <SelectValue
+              placeholder={
+                !subcategoryId
+                  ? 'Pick a subcategory first'
+                  : microOptions.length === 0
+                    ? 'No microcategories'
+                    : 'Microcategory'
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {microOptions.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
           value={itemId ?? noneValue}
           onValueChange={(v) => {
             if (v === noneValue) {
@@ -1064,13 +1108,13 @@ function ItemPicker({
             const picked = items.find((i) => i.id === v) ?? null;
             onItemChange(picked);
           }}
-          disabled={!subcategoryId}
+          disabled={!microcategoryId}
         >
           <SelectTrigger>
             <SelectValue
               placeholder={
-                !subcategoryId
-                  ? 'Pick a subcategory first'
+                !microcategoryId
+                  ? 'Pick a microcategory first'
                   : itemsLoading
                     ? 'Loading…'
                     : items.length === 0

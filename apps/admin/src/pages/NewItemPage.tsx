@@ -32,6 +32,7 @@ export function NewItemPage() {
 
   const [categoryId, setCategoryId] = useState('');
   const [subcategoryId, setSubcategoryId] = useState('');
+  const [microcategoryId, setMicrocategoryId] = useState('');
   const [name, setName] = useState('');
   const [uom, setUom] = useState<Uom>('MT');
   const [hsn, setHsn] = useState('');
@@ -43,16 +44,21 @@ export function NewItemPage() {
     return cats.data.find((c) => c.id === categoryId)?.subcategories ?? [];
   }, [cats.data, categoryId]);
 
+  const microcategories = useMemo(() => {
+    if (!subcategoryId) return [];
+    return subcategories.find((s) => s.id === subcategoryId)?.microcategories ?? [];
+  }, [subcategories, subcategoryId]);
+
   const suggestions = useQuery({
-    queryKey: ['inventory', 'suggestedAttributes', subcategoryId],
-    queryFn: () => api.inventory.suggestedAttributes(subcategoryId),
-    enabled: !!subcategoryId,
+    queryKey: ['inventory', 'suggestedAttributes', microcategoryId],
+    queryFn: () => api.inventory.suggestedAttributes(microcategoryId),
+    enabled: !!microcategoryId,
   });
 
   const mutation = useMutation({
     mutationFn: () =>
       api.inventory.createItem({
-        subcategoryId,
+        microcategoryId,
         name: name.trim(),
         uom,
         hsnCode: hsn.trim(),
@@ -65,8 +71,8 @@ export function NewItemPage() {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!subcategoryId) {
-      setError('Please pick a subcategory');
+    if (!microcategoryId) {
+      setError('Please pick a microcategory');
       return;
     }
     mutation.mutate();
@@ -97,10 +103,17 @@ export function NewItemPage() {
                 Where does it live
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
+            <CardContent className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Category</Label>
-                <Select value={categoryId} onValueChange={(v) => { setCategoryId(v); setSubcategoryId(''); }}>
+                <Select
+                  value={categoryId}
+                  onValueChange={(v) => {
+                    setCategoryId(v);
+                    setSubcategoryId('');
+                    setMicrocategoryId('');
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -115,14 +128,46 @@ export function NewItemPage() {
               </div>
               <div className="space-y-2">
                 <Label>Subcategory</Label>
-                <Select value={subcategoryId} onValueChange={setSubcategoryId} disabled={!categoryId}>
+                <Select
+                  value={subcategoryId}
+                  onValueChange={(v) => {
+                    setSubcategoryId(v);
+                    setMicrocategoryId('');
+                  }}
+                  disabled={!categoryId}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder={categoryId ? 'Select subcategory' : 'Pick category first'} />
+                    <SelectValue
+                      placeholder={categoryId ? 'Select subcategory' : 'Pick category first'}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {subcategories.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Microcategory</Label>
+                <Select
+                  value={microcategoryId}
+                  onValueChange={setMicrocategoryId}
+                  disabled={!subcategoryId}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        subcategoryId ? 'Select microcategory' : 'Pick subcategory first'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {microcategories.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -188,14 +233,14 @@ export function NewItemPage() {
             </CardContent>
           </Card>
 
-          {subcategoryId && suggestions.data && (
+          {microcategoryId && suggestions.data && (
             <Card className="bg-muted/40">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between text-sm font-medium uppercase tracking-wider text-muted-foreground">
                   <span>Suggested attributes</span>
                   <span className="text-primary">
                     {suggestions.data.attributes.length > 0
-                      ? 'Common in this subcategory'
+                      ? 'Common in this microcategory'
                       : 'No usage data yet'}
                   </span>
                 </CardTitle>

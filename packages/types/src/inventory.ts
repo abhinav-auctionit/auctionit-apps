@@ -21,6 +21,13 @@ export const createSubcategorySchema = z.object({
 export const updateSubcategorySchema = z.object({ name: nameField.optional() });
 export type CreateSubcategoryInput = z.infer<typeof createSubcategorySchema>;
 
+export const createMicrocategorySchema = z.object({
+  subcategoryId: z.string().uuid(),
+  name: nameField,
+});
+export const updateMicrocategorySchema = z.object({ name: nameField.optional() });
+export type CreateMicrocategoryInput = z.infer<typeof createMicrocategorySchema>;
+
 export const createAttributeSchema = z
   .object({
     name: nameField,
@@ -58,7 +65,7 @@ export const updateAttributeSchema = z.object({
 export type UpdateAttributeInput = z.infer<typeof updateAttributeSchema>;
 
 export const createItemSchema = z.object({
-  subcategoryId: z.string().uuid(),
+  microcategoryId: z.string().uuid(),
   name: nameField,
   uom: uomSchema,
   hsnCode: hsnCodeSchema,
@@ -67,7 +74,7 @@ export const createItemSchema = z.object({
 export type CreateItemInput = z.infer<typeof createItemSchema>;
 
 export const updateItemSchema = z.object({
-  subcategoryId: z.string().uuid().optional(),
+  microcategoryId: z.string().uuid().optional(),
   name: nameField.optional(),
   uom: uomSchema.optional(),
   hsnCode: hsnCodeSchema.optional(),

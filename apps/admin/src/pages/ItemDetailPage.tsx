@@ -84,7 +84,7 @@ export function ItemDetailPage() {
           <div>
             <p className="text-xs uppercase tracking-wider text-muted-foreground">
               <Link to="/items" className="hover:text-foreground">Items</Link> ›{' '}
-              {it.categoryName} › {it.subcategoryName}
+              {it.categoryName} › {it.subcategoryName} › {it.microcategoryName}
             </p>
             <div className="mt-1 flex items-center justify-between">
               <h1 className="text-2xl font-semibold">{it.name}</h1>
@@ -104,7 +104,10 @@ export function ItemDetailPage() {
             </CardHeader>
             <CardContent className="grid gap-y-4 gap-x-8 md:grid-cols-2">
               <Field label="Item name" value={it.name} />
-              <Field label="Subcategory" value={`${it.categoryName} › ${it.subcategoryName}`} />
+              <Field
+                label="Microcategory"
+                value={`${it.categoryName} › ${it.subcategoryName} › ${it.microcategoryName}`}
+              />
               <Field label="Unit of measure" value={it.uom} />
               <Field label="HSN code" value={it.hsnCode ?? '—'} mono />
               <Field

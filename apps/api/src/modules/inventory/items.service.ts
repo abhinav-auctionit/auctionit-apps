@@ -15,12 +15,18 @@ const itemSelect = {
   benchmarkCents: true,
   createdAt: true,
   updatedAt: true,
-  subcategoryId: true,
-  subcategory: {
+  microcategoryId: true,
+  microcategory: {
     select: {
       name: true,
-      categoryId: true,
-      category: { select: { id: true, name: true } },
+      subcategoryId: true,
+      subcategory: {
+        select: {
+          name: true,
+          categoryId: true,
+          category: { select: { id: true, name: true } },
+        },
+      },
     },
   },
   attributeValues: {
@@ -39,9 +45,12 @@ const itemSelect = {
 type ItemRow = Prisma.ItemGetPayload<{ select: typeof itemSelect }>;
 
 function flatten(row: ItemRow) {
-  const { subcategory, attributeValues, ...rest } = row;
+  const { microcategory, attributeValues, ...rest } = row;
+  const subcategory = microcategory.subcategory;
   return {
     ...rest,
+    microcategoryName: microcategory.name,
+    subcategoryId: microcategory.subcategoryId,
     subcategoryName: subcategory.name,
     categoryId: subcategory.category.id,
     categoryName: subcategory.category.name,
@@ -59,12 +68,16 @@ function flatten(row: ItemRow) {
 export class ItemsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(params: { subcategoryId?: string; categoryId?: string } = {}) {
-    const where: Prisma.ItemWhereInput = params.subcategoryId
-      ? { subcategoryId: params.subcategoryId }
-      : params.categoryId
-        ? { subcategory: { categoryId: params.categoryId } }
-        : {};
+  async list(
+    params: { microcategoryId?: string; subcategoryId?: string; categoryId?: string } = {},
+  ) {
+    const where: Prisma.ItemWhereInput = params.microcategoryId
+      ? { microcategoryId: params.microcategoryId }
+      : params.subcategoryId
+        ? { microcategory: { subcategoryId: params.subcategoryId } }
+        : params.categoryId
+          ? { microcategory: { subcategory: { categoryId: params.categoryId } } }
+          : {};
 
     const rows = await this.prisma.item.findMany({
       where,
@@ -87,7 +100,7 @@ export class ItemsService {
   async create(dto: CreateItemDto) {
     const created = await this.prisma.item.create({
       data: {
-        subcategoryId: dto.subcategoryId,
+        microcategoryId: dto.microcategoryId,
         name: dto.name,
         uom: dto.uom,
         hsnCode: dto.hsnCode ?? null,
@@ -103,7 +116,7 @@ export class ItemsService {
       await this.prisma.item.update({
         where: { id },
         data: {
-          subcategoryId: dto.subcategoryId ?? undefined,
+          microcategoryId: dto.microcategoryId ?? undefined,
           name: dto.name ?? undefined,
           uom: dto.uom ?? undefined,
           hsnCode: dto.hsnCode === undefined ? undefined : dto.hsnCode,
@@ -162,13 +175,13 @@ export class ItemsService {
     return { ok: true as const };
   }
 
-  async suggestedAttributes(subcategoryId: string) {
-    const total = await this.prisma.item.count({ where: { subcategoryId } });
+  async suggestedAttributes(microcategoryId: string) {
+    const total = await this.prisma.item.count({ where: { microcategoryId } });
     const grouped = await this.prisma.itemAttributeValue.groupBy({
       by: ['attributeId'],
       where: {
         attributeId: { not: null },
-        item: { subcategoryId },
+        item: { microcategoryId },
       },
       _count: { itemId: true },
     });

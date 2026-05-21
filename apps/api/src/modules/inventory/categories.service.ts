@@ -2,8 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import type {
   CreateCategoryDto,
+  CreateMicrocategoryDto,
   CreateSubcategoryDto,
   UpdateCategoryDto,
+  UpdateMicrocategoryDto,
   UpdateSubcategoryDto,
 } from './dto';
 
@@ -17,18 +19,33 @@ export class CategoriesService {
       include: {
         subcategories: {
           orderBy: [{ position: 'asc' }, { name: 'asc' }],
-          include: { _count: { select: { items: true } } },
+          include: {
+            microcategories: {
+              orderBy: [{ position: 'asc' }, { name: 'asc' }],
+              include: { _count: { select: { items: true } } },
+            },
+          },
         },
       },
     });
 
     return rows.map((cat) => {
-      const subcategories = cat.subcategories.map((s) => ({
-        id: s.id,
-        name: s.name,
-        position: s.position,
-        itemCount: s._count.items,
-      }));
+      const subcategories = cat.subcategories.map((s) => {
+        const microcategories = s.microcategories.map((m) => ({
+          id: m.id,
+          name: m.name,
+          position: m.position,
+          itemCount: m._count.items,
+        }));
+        const subItemCount = microcategories.reduce((acc, m) => acc + m.itemCount, 0);
+        return {
+          id: s.id,
+          name: s.name,
+          position: s.position,
+          itemCount: subItemCount,
+          microcategories,
+        };
+      });
       const itemCount = subcategories.reduce((acc, s) => acc + s.itemCount, 0);
       return {
         id: cat.id,
@@ -82,6 +99,29 @@ export class CategoriesService {
       await this.prisma.subcategory.delete({ where: { id } });
     } catch {
       throw new NotFoundException(`subcategory ${id} not found`);
+    }
+    return { ok: true as const };
+  }
+
+  async createMicrocategory(dto: CreateMicrocategoryDto) {
+    return this.prisma.microcategory.create({
+      data: { subcategoryId: dto.subcategoryId, name: dto.name, position: 0 },
+    });
+  }
+
+  async updateMicrocategory(id: string, dto: UpdateMicrocategoryDto) {
+    try {
+      return await this.prisma.microcategory.update({ where: { id }, data: dto });
+    } catch {
+      throw new NotFoundException(`microcategory ${id} not found`);
+    }
+  }
+
+  async deleteMicrocategory(id: string) {
+    try {
+      await this.prisma.microcategory.delete({ where: { id } });
+    } catch {
+      throw new NotFoundException(`microcategory ${id} not found`);
     }
     return { ok: true as const };
   }

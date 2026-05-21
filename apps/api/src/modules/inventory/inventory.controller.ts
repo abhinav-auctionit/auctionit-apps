@@ -8,11 +8,13 @@ import {
   CreateAttributeDto,
   CreateCategoryDto,
   CreateItemDto,
+  CreateMicrocategoryDto,
   CreateSubcategoryDto,
   ItemAttributeValueInputDto,
   UpdateAttributeDto,
   UpdateCategoryDto,
   UpdateItemDto,
+  UpdateMicrocategoryDto,
   UpdateSubcategoryDto,
 } from './dto';
 
@@ -61,7 +63,25 @@ export class InventoryController {
     return this.categories.deleteSubcategory(id);
   }
 
-  @Get('subcategories/:id/suggested-attributes')
+  @Post('microcategories')
+  createMicrocategory(@Body() dto: CreateMicrocategoryDto) {
+    return this.categories.createMicrocategory(dto);
+  }
+
+  @Patch('microcategories/:id')
+  updateMicrocategory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateMicrocategoryDto,
+  ) {
+    return this.categories.updateMicrocategory(id, dto);
+  }
+
+  @Delete('microcategories/:id')
+  deleteMicrocategory(@Param('id', ParseUUIDPipe) id: string) {
+    return this.categories.deleteMicrocategory(id);
+  }
+
+  @Get('microcategories/:id/suggested-attributes')
   suggestedAttributes(@Param('id', ParseUUIDPipe) id: string) {
     return this.items.suggestedAttributes(id);
   }
@@ -93,10 +113,11 @@ export class InventoryController {
 
   @Get('items')
   listItems(
+    @Query('microcategoryId') microcategoryId?: string,
     @Query('subcategoryId') subcategoryId?: string,
     @Query('categoryId') categoryId?: string,
   ) {
-    return this.items.list({ subcategoryId, categoryId });
+    return this.items.list({ microcategoryId, subcategoryId, categoryId });
   }
 
   @Get('items/:id')

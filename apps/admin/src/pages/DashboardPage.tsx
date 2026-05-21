@@ -6,7 +6,7 @@ import { AppShell } from '../components/AppShell';
 const sections = [
   {
     title: 'Categories',
-    description: 'Manage the 2-level category → subcategory hierarchy.',
+    description: 'Manage the 3-level category → subcategory → microcategory hierarchy.',
     to: '/inventory/categories',
   },
   {
@@ -16,7 +16,7 @@ const sections = [
   },
   {
     title: 'Items',
-    description: 'Catalog of sellable items, attached to a subcategory.',
+    description: 'Catalog of sellable items, attached to a microcategory.',
     to: '/items',
   },
   {

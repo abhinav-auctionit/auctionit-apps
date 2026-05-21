@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { hash } from '@node-rs/argon2';
+import { TAXONOMY } from './taxonomy';
 
 type AdminSeed = { email: string; name: string; password: string };
 
@@ -45,30 +46,74 @@ async function seedAdmins(prisma: PrismaClient) {
   }
 }
 
+// Upserts the full Category > Subcategory > Microcategory taxonomy. Positions
+// are assigned in the order they appear in `taxonomy.ts`, so the business team
+// can reorder by editing that file.
+async function seedTaxonomy(prisma: PrismaClient) {
+  const catPos = new Map<string, number>();
+  const subPos = new Map<string, number>(); // key: `${categoryName}::${subName}`
+  const microPos = new Map<string, number>(); // key: `${categoryName}::${subName}::${microName}`
+
+  for (const [cat, sub, micro] of TAXONOMY) {
+    if (!catPos.has(cat)) catPos.set(cat, catPos.size + 1);
+    const subKey = `${cat}::${sub}`;
+    if (!subPos.has(subKey)) subPos.set(subKey, subPos.size + 1);
+    const microKey = `${subKey}::${micro}`;
+    if (!microPos.has(microKey)) microPos.set(microKey, microPos.size + 1);
+  }
+
+  // Categories
+  const catIdByName = new Map<string, string>();
+  for (const [name, position] of catPos) {
+    const row = await prisma.category.upsert({
+      where: { name },
+      update: { position },
+      create: { name, position },
+    });
+    catIdByName.set(name, row.id);
+  }
+
+  // Subcategories
+  const subIdByKey = new Map<string, string>();
+  for (const [key, position] of subPos) {
+    const [catName, subName] = key.split('::');
+    const categoryId = catIdByName.get(catName);
+    if (!categoryId) throw new Error(`missing category ${catName}`);
+    const row = await prisma.subcategory.upsert({
+      where: { categoryId_name: { categoryId, name: subName } },
+      update: { position },
+      create: { categoryId, name: subName, position },
+    });
+    subIdByKey.set(key, row.id);
+  }
+
+  // Microcategories
+  for (const [key, position] of microPos) {
+    const [catName, subName, microName] = key.split('::');
+    const subcategoryId = subIdByKey.get(`${catName}::${subName}`);
+    if (!subcategoryId) throw new Error(`missing subcategory ${catName}::${subName}`);
+    await prisma.microcategory.upsert({
+      where: { subcategoryId_name: { subcategoryId, name: microName } },
+      update: { position },
+      create: { subcategoryId, name: microName, position },
+    });
+  }
+
+  console.log(
+    `seeded taxonomy: ${catPos.size} categories · ${subPos.size} subcategories · ${microPos.size} microcategories`,
+  );
+}
+
 async function seedDemo(prisma: PrismaClient) {
   const passwordHash = await hash(DEMO_PASSWORD, argonOpts);
 
-  const metals = await prisma.category.upsert({
-    where: { name: 'Metals' },
-    update: { position: 1 },
-    create: { name: 'Metals', position: 1 },
-  });
-  const plastics = await prisma.category.upsert({
-    where: { name: 'Plastics' },
-    update: { position: 2 },
-    create: { name: 'Plastics', position: 2 },
-  });
-
-  const ferrous = await prisma.subcategory.upsert({
-    where: { categoryId_name: { categoryId: metals.id, name: 'Ferrous Scrap' } },
-    update: { position: 1 },
-    create: { categoryId: metals.id, name: 'Ferrous Scrap', position: 1 },
-  });
-  await prisma.subcategory.upsert({
-    where: { categoryId_name: { categoryId: plastics.id, name: 'PET Bottles' } },
-    update: { position: 1 },
-    create: { categoryId: plastics.id, name: 'PET Bottles', position: 1 },
-  });
+  // Pick three real microcategories from the taxonomy for the demo lots.
+  // Falls back to the first three rows if names ever change.
+  const DEMO_ITEM_SPECS: { category: string; sub: string; micro: string; hsn: string }[] = [
+    { category: 'MS Scrap', sub: 'MS Melting Scrap', micro: 'Heavy Scrap', hsn: '7204' },
+    { category: 'Cast Iron & DI', sub: 'Cast Iron', micro: 'CI Scrap', hsn: '7204' },
+    { category: 'MS Scrap', sub: 'MS Process Scrap', micro: 'Turning/Boring/Chips', hsn: '7204' },
+  ];
 
   await prisma.attribute.upsert({
     where: { name: 'Grade' },
@@ -76,22 +121,35 @@ async function seedDemo(prisma: PrismaClient) {
     create: { name: 'Grade', type: 'text' },
   });
 
-  const itemDefs = [
-    { name: 'HMS 1&2 Scrap', uom: 'MT' as const, hsnCode: '7204' },
-    { name: 'Cast Iron Borings', uom: 'MT' as const, hsnCode: '7204' },
-    { name: 'MS Turning Scrap', uom: 'MT' as const, hsnCode: '7204' },
-  ];
-  const items = [];
-  for (const def of itemDefs) {
-    const existing = await prisma.item.findFirst({
-      where: { subcategoryId: ferrous.id, name: def.name },
+  const items: { id: string; name: string; uom: 'MT' }[] = [];
+  for (const spec of DEMO_ITEM_SPECS) {
+    const micro = await prisma.microcategory.findFirst({
+      where: {
+        name: spec.micro,
+        subcategory: { name: spec.sub, category: { name: spec.category } },
+      },
+      select: { id: true },
     });
-    items.push(
+    if (!micro) {
+      throw new Error(`demo microcategory not found: ${spec.category} > ${spec.sub} > ${spec.micro}`);
+    }
+    const itemName = `${spec.micro} (Demo)`;
+    const existing = await prisma.item.findFirst({
+      where: { microcategoryId: micro.id, name: itemName },
+      select: { id: true, name: true, uom: true },
+    });
+    const item =
       existing ??
-        (await prisma.item.create({
-          data: { subcategoryId: ferrous.id, ...def },
-        })),
-    );
+      (await prisma.item.create({
+        data: {
+          microcategoryId: micro.id,
+          name: itemName,
+          uom: 'MT',
+          hsnCode: spec.hsn,
+        },
+        select: { id: true, name: true, uom: true },
+      }));
+    items.push({ id: item.id, name: item.name, uom: 'MT' });
   }
 
   const client = await prisma.client.upsert({
@@ -207,9 +265,9 @@ async function seedDemo(prisma: PrismaClient) {
         auctionId: auction.id,
         lotNo,
         itemId: items[i].id,
-        itemName: itemDefs[i].name,
+        itemName: items[i].name,
         qty: new Prisma.Decimal(50),
-        uom: itemDefs[i].uom,
+        uom: items[i].uom,
         auctionDate: startTime,
         startTime,
         endTime,
@@ -229,6 +287,7 @@ async function main() {
   const prisma = new PrismaClient();
   try {
     await seedAdmins(prisma);
+    await seedTaxonomy(prisma);
     if (process.env.SEED_DEMO === '1') {
       await seedDemo(prisma);
     }
