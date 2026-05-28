@@ -40,14 +40,32 @@ const STATUS_BADGE: Record<BidderStatus, { label: string; variant: 'default' | '
   rejected: { label: 'Rejected', variant: 'destructive' },
 };
 
+const PAGE_SIZE = 50;
+
 export function BiddersPage() {
   const api = useApiClient();
   const [filter, setFilter] = useState<BidderStatus | 'all'>('all');
+  const [page, setPage] = useState(1);
 
   const list = useQuery({
-    queryKey: ['admin', 'bidder-profiles', filter],
-    queryFn: () => api.adminBidders.list(filter === 'all' ? {} : { status: filter }),
+    queryKey: ['admin', 'bidder-profiles', filter, page],
+    queryFn: () =>
+      api.adminBidders.list({
+        ...(filter === 'all' ? {} : { status: filter }),
+        page,
+        pageSize: PAGE_SIZE,
+      }),
+    placeholderData: (prev) => prev,
   });
+
+  function changeFilter(next: BidderStatus | 'all') {
+    setFilter(next);
+    setPage(1);
+  }
+
+  const rows = list.data?.rows ?? [];
+  const total = list.data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <AppShell>
@@ -60,7 +78,7 @@ export function BiddersPage() {
             </p>
           </div>
           <div className="w-56">
-            <Select value={filter} onValueChange={(v) => setFilter(v as BidderStatus | 'all')}>
+            <Select value={filter} onValueChange={(v) => changeFilter(v as BidderStatus | 'all')}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -82,7 +100,7 @@ export function BiddersPage() {
           </p>
         )}
 
-        {list.data && list.data.length === 0 && (
+        {list.data && rows.length === 0 && (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
               No bidder profiles match this filter.
@@ -90,10 +108,40 @@ export function BiddersPage() {
           </Card>
         )}
 
-        {list.data && list.data.length > 0 && (
+        {list.data && rows.length > 0 && (
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{list.data.length} profile(s)</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">
+                {total} profile{total === 1 ? '' : 's'}
+                {pageCount > 1 && (
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    showing {(page - 1) * PAGE_SIZE + 1}–{(page - 1) * PAGE_SIZE + rows.length}
+                  </span>
+                )}
+              </CardTitle>
+              {pageCount > 1 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1 || list.isFetching}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-muted-foreground">
+                    Page {page} of {pageCount}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                    disabled={page >= pageCount || list.isFetching}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <Table>
@@ -108,12 +156,17 @@ export function BiddersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {list.data.map((p) => {
+                  {rows.map((p) => {
                     const badge = STATUS_BADGE[p.status];
                     return (
                       <TableRow key={p.id}>
                         <TableCell>
-                          <div className="font-medium">{p.fullName ?? p.user.name}</div>
+                          <Link
+                            to={`/bidders/${p.id}`}
+                            className="font-medium text-primary hover:underline"
+                          >
+                            {p.fullName ?? p.user.name}
+                          </Link>
                           <div className="text-xs text-muted-foreground">{p.user.email}</div>
                         </TableCell>
                         <TableCell>{p.companyName ?? '—'}</TableCell>
@@ -134,7 +187,9 @@ export function BiddersPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <Button asChild size="sm" variant="outline">
-                            <Link to={`/bidders/${p.id}`}>Review</Link>
+                            <Link to={`/bidders/${p.id}`}>
+                              {p.status === 'approved' ? 'Details' : 'Review'}
+                            </Link>
                           </Button>
                         </TableCell>
                       </TableRow>

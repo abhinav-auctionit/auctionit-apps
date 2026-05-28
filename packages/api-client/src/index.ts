@@ -695,11 +695,18 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
       contentUrl: (id: string) => `${baseUrl}/api/files/${id}/content`,
     },
     adminBidders: {
-      list: (params: { status?: BidderStatus } = {}) => {
+      list: (params: { status?: BidderStatus; page?: number; pageSize?: number } = {}) => {
         const qs = new URLSearchParams();
         if (params.status) qs.set('status', params.status);
+        if (params.page) qs.set('page', String(params.page));
+        if (params.pageSize) qs.set('pageSize', String(params.pageSize));
         const suffix = qs.toString() ? `?${qs}` : '';
-        return request<BidderProfileWithUser[]>(baseUrl, `/admin/bidder-profiles${suffix}`);
+        return request<{
+          rows: BidderProfileWithUser[];
+          total: number;
+          page: number;
+          pageSize: number;
+        }>(baseUrl, `/admin/bidder-profiles${suffix}`);
       },
       get: (id: string) =>
         request<BidderProfileDetail>(baseUrl, `/admin/bidder-profiles/${id}`),

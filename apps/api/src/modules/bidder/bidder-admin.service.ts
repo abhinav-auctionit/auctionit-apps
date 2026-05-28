@@ -19,15 +19,21 @@ const PROFILE_DETAIL_INCLUDE = {
 export class BidderAdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(filter: { status?: BidderStatus }) {
-    return this.prisma.bidderProfile.findMany({
-      where: filter.status ? { status: filter.status } : undefined,
-      include: {
-        user: { select: { id: true, email: true, name: true } },
-      },
-      orderBy: { submittedAt: 'desc' },
-      take: 200,
-    });
+  async list(params: { status?: BidderStatus; page: number; pageSize: number }) {
+    const where = params.status ? { status: params.status } : undefined;
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.bidderProfile.findMany({
+        where,
+        include: {
+          user: { select: { id: true, email: true, name: true } },
+        },
+        orderBy: { submittedAt: 'desc' },
+        skip: (params.page - 1) * params.pageSize,
+        take: params.pageSize,
+      }),
+      this.prisma.bidderProfile.count({ where }),
+    ]);
+    return { rows, total, page: params.page, pageSize: params.pageSize };
   }
 
   async findOne(id: string) {

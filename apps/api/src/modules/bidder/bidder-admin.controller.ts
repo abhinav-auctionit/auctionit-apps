@@ -32,12 +32,16 @@ export class BidderAdminController {
   ) {}
 
   @Get()
-  list(@Query('status') status?: string) {
-    const parsed = bidderListQuerySchema.safeParse({ status });
+  list(@Query() query: Record<string, string>) {
+    const parsed = bidderListQuerySchema.safeParse(query);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.issues[0]?.message ?? 'invalid query');
     }
-    return this.admin.list({ status: parsed.data.status as BidderStatus | undefined });
+    return this.admin.list({
+      status: parsed.data.status as BidderStatus | undefined,
+      page: parsed.data.page,
+      pageSize: parsed.data.pageSize,
+    });
   }
 
   // NOTE: must precede `@Get(':id')` so the static path isn't UUID-parsed.

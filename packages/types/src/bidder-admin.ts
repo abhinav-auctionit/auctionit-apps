@@ -13,5 +13,7 @@ export type BidderMarkFeePaidInput = z.infer<typeof bidderMarkFeePaidSchema>;
 
 export const bidderListQuerySchema = z.object({
   status: bidderStatusSchema.optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(200).default(50),
 });
 export type BidderListQuery = z.infer<typeof bidderListQuerySchema>;

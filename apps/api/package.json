@@ -18,6 +18,7 @@
     "import:attributes": "tsx scripts/import-attributes-from-mssql.ts",
     "import:clients": "tsx scripts/import-clients-from-mssql.ts",
     "import:users": "tsx scripts/import-users-from-mssql.ts",
+    "import:bidders": "tsx scripts/import-bidders-from-mssql.ts",
     "dump:mssql-schema": "tsx scripts/dump-mssql-schema.ts",
     "probe:mssql": "tsx scripts/probe-mssql.ts",
     "db:studio": "prisma studio",
