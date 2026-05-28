@@ -8,7 +8,10 @@ export const userSchema = z.object({
   email: z.string().email(),
   name: z.string(),
   role: userRoleSchema,
+  mobileCountryCode: z.string().nullable(),
+  mobileNumber: z.string().nullable(),
   createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
 });
 
 export type User = z.infer<typeof userSchema>;

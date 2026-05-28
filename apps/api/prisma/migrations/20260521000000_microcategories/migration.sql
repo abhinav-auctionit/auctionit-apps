@@ -50,7 +50,8 @@ ALTER TABLE "microcategories"
 
 -- 4) Re-point items at microcategories. Because we truncated above, the
 --    items table is empty and we can swap the column without backfill.
-ALTER TABLE "items" DROP CONSTRAINT "items_subcategory_id_subcategories_id_fk";
+ALTER TABLE "items" DROP CONSTRAINT IF EXISTS "items_subcategory_id_subcategories_id_fk";
+ALTER TABLE "items" DROP CONSTRAINT IF EXISTS "items_subcategory_id_fkey";
 ALTER TABLE "items" DROP COLUMN "subcategory_id";
 ALTER TABLE "items" ADD COLUMN "microcategory_id" UUID NOT NULL;
 

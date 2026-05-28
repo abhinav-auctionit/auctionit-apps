@@ -6,10 +6,12 @@ import {
   Get,
   HttpCode,
   Post,
+  Query,
   Req,
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
+import { userRoleSchema, type UserRole } from '@auction/types';
 import { ApiTags } from '@nestjs/swagger';
 import type { CookieOptions, Request, Response } from 'express';
 import { AppConfig } from '../../config/app-config.service';
@@ -197,6 +199,18 @@ export class AuthController {
   @Post('users')
   async createUser(@Body() dto: CreateUserDto): Promise<SafeUser> {
     return this.auth.createUser(dto);
+  }
+
+  @Roles('admin')
+  @Get('users')
+  async listUsers(@Query('role') role?: string): Promise<SafeUser[]> {
+    let roleFilter: UserRole | undefined;
+    if (role !== undefined && role !== '' && role !== 'all') {
+      const parsed = userRoleSchema.safeParse(role);
+      if (!parsed.success) throw new BadRequestException('invalid role');
+      roleFilter = parsed.data;
+    }
+    return this.auth.listUsers(roleFilter);
   }
 
   private async startSession(userId: string, req: Request, res: Response) {

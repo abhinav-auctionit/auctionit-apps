@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { UsersNewPage } from './pages/UsersNewPage';
+import { UsersListPage } from './pages/UsersListPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { AttributesPage } from './pages/AttributesPage';
 import { BiddersPage } from './pages/BiddersPage';
@@ -42,6 +43,7 @@ export function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/" element={adminRoute(<DashboardPage />)} />
+            <Route path="/users" element={adminRoute(<UsersListPage />)} />
             <Route path="/users/new" element={adminRoute(<UsersNewPage />)} />
             <Route path="/inventory/categories" element={adminRoute(<CategoriesPage />)} />
             <Route path="/inventory/attributes" element={adminRoute(<AttributesPage />)} />

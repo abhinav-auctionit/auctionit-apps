@@ -39,7 +39,10 @@ const NAV: NavItem[] = [
     kind: 'group',
     label: 'Users',
     basePaths: ['/users'],
-    children: [{ kind: 'leaf', label: 'Create user', to: '/users/new' }],
+    children: [
+      { kind: 'leaf', label: 'All users', to: '/users', end: true },
+      { kind: 'leaf', label: 'Create user', to: '/users/new' },
+    ],
   },
   {
     kind: 'group',

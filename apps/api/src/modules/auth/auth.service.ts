@@ -3,6 +3,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import type { UserRole } from '@auction/types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { hashPassword, verifyPassword } from './password';
 import { OtpService } from './otp.service';
@@ -75,6 +76,22 @@ export class AuthService {
       ...user
     } = row;
     return user;
+  }
+
+  async listUsers(role?: UserRole): Promise<SafeUser[]> {
+    const rows = await this.prisma.user.findMany({
+      where: role ? { role } : undefined,
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+    return rows.map((row) => {
+      const {
+        passwordHash: _ignoredHash,
+        passwordHashAlgo: _ignoredAlgo,
+        ...user
+      } = row;
+      return user;
+    });
   }
 
   async findUserByEmailForOtp(email: string): Promise<SafeUser | null> {

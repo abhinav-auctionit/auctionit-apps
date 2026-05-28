@@ -24,6 +24,7 @@ import type {
   Uom,
   UpdateAttributeInput,
   User,
+  UserRole,
   WalletCreditInput,
   WalletDebitInput,
   WalletTxnKind,
@@ -611,6 +612,10 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
       me: () => request<User>(baseUrl, '/auth/me'),
       createUser: (body: CreateUserInput) =>
         request<User>(baseUrl, '/auth/users', json('POST', body)),
+      listUsers: (params: { role?: UserRole } = {}) => {
+        const qs = params.role ? `?role=${encodeURIComponent(params.role)}` : '';
+        return request<User[]>(baseUrl, `/auth/users${qs}`);
+      },
 
       loginEmailOtpSend: (body: OtpSendEmailInput) =>
         request<void>(baseUrl, '/auth/login/email-otp/send', json('POST', body)),

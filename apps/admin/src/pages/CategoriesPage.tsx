@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type MouseEvent } from 'react';
+import { useMemo, useState, type FormEvent, type MouseEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ApiError,
@@ -45,6 +45,7 @@ export function CategoriesPage() {
   // Single expansion set covers both categories and subcategories — IDs are
   // UUIDs and won't collide across levels.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [query, setQuery] = useState('');
   const [openCat, setOpenCat] = useState(false);
   const [openSubFor, setOpenSubFor] = useState<{ id: string; name: string } | null>(null);
   const [openMicroFor, setOpenMicroFor] = useState<
@@ -100,15 +101,67 @@ export function CategoriesPage() {
     deleteMicrocategoryMutation.error ??
     null;
 
-  const summary = cats.data
-    ? `${cats.data.length} categor${cats.data.length === 1 ? 'y' : 'ies'} · ${cats.data.reduce(
-        (n, c) => n + c.subcategories.length,
-        0,
-      )} subcategories · ${cats.data.reduce(
-        (n, c) => n + c.subcategories.reduce((m, s) => m + s.microcategories.length, 0),
-        0,
-      )} microcategories`
-    : 'Loading…';
+  const trimmedQuery = query.trim();
+  const isSearching = trimmedQuery.length > 0;
+
+  const { filteredCats, autoExpanded } = useMemo(() => {
+    const source = cats.data ?? [];
+    if (!isSearching) return { filteredCats: source, autoExpanded: new Set<string>() };
+    const q = trimmedQuery.toLowerCase();
+    const auto = new Set<string>();
+    const out: CategoryWithSubcategories[] = [];
+    for (const c of source) {
+      const catMatches = c.name.toLowerCase().includes(q);
+      if (catMatches) {
+        out.push(c);
+        auto.add(c.id);
+        c.subcategories.forEach((s) => auto.add(s.id));
+        continue;
+      }
+      const filteredSubs: SubcategoryWithMicrocategories[] = [];
+      for (const s of c.subcategories) {
+        const subMatches = s.name.toLowerCase().includes(q);
+        if (subMatches) {
+          filteredSubs.push(s);
+          auto.add(s.id);
+          continue;
+        }
+        const filteredMicros = s.microcategories.filter((m) =>
+          m.name.toLowerCase().includes(q),
+        );
+        if (filteredMicros.length > 0) {
+          filteredSubs.push({ ...s, microcategories: filteredMicros });
+          auto.add(s.id);
+        }
+      }
+      if (filteredSubs.length > 0) {
+        out.push({ ...c, subcategories: filteredSubs });
+        auto.add(c.id);
+      }
+    }
+    return { filteredCats: out, autoExpanded: auto };
+  }, [cats.data, isSearching, trimmedQuery]);
+
+  const effectiveExpanded = isSearching ? autoExpanded : expanded;
+
+  const summary = !cats.data
+    ? 'Loading…'
+    : (() => {
+        const catCount = filteredCats.length;
+        const subCount = filteredCats.reduce((n, c) => n + c.subcategories.length, 0);
+        const microCount = filteredCats.reduce(
+          (n, c) => n + c.subcategories.reduce((m, s) => m + s.microcategories.length, 0),
+          0,
+        );
+        const base = `${catCount} categor${catCount === 1 ? 'y' : 'ies'} · ${subCount} subcategories · ${microCount} microcategories`;
+        if (!isSearching) return base;
+        const totalMicro = cats.data.reduce(
+          (n, c) => n + c.subcategories.reduce((m, s) => m + s.microcategories.length, 0),
+          0,
+        );
+        const totalSub = cats.data.reduce((n, c) => n + c.subcategories.length, 0);
+        return `${base} (matching) · ${cats.data.length} / ${totalSub} / ${totalMicro} total`;
+      })();
 
   return (
     <AppShell>
@@ -145,6 +198,26 @@ export function CategoriesPage() {
           </p>
         )}
 
+        <div className="relative">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search categories, subcategories, microcategories…"
+            aria-label="Search inventory"
+            className="pr-9"
+          />
+          {isSearching && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-0.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-base">Inventory tree</CardTitle>
@@ -158,12 +231,17 @@ export function CategoriesPage() {
                 No categories yet. Add one to get started.
               </p>
             )}
+            {cats.data && cats.data.length > 0 && isSearching && filteredCats.length === 0 && (
+              <p className="px-2 py-1.5 text-sm text-muted-foreground">
+                No matches for “{trimmedQuery}”.
+              </p>
+            )}
 
-            {cats.data?.map((c) => (
+            {filteredCats.map((c) => (
               <CategoryNode
                 key={c.id}
                 category={c}
-                expanded={expanded}
+                expanded={effectiveExpanded}
                 onToggle={toggle}
                 onAddSubcategory={() => setOpenSubFor({ id: c.id, name: c.name })}
                 onAddMicrocategory={(s) =>
@@ -192,13 +270,15 @@ export function CategoriesPage() {
               />
             ))}
 
-            <button
-              type="button"
-              onClick={() => setOpenCat(true)}
-              className="mt-2 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <span aria-hidden="true">+</span> Add category
-            </button>
+            {!isSearching && (
+              <button
+                type="button"
+                onClick={() => setOpenCat(true)}
+                className="mt-2 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <span aria-hidden="true">+</span> Add category
+              </button>
+            )}
           </CardContent>
         </Card>
       </div>
