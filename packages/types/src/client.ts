@@ -60,6 +60,11 @@ const clientEditableFields = {
   // Step 5 — Display
   displayMaterialLocation: z.boolean().default(false),
   displayPlantLocation: z.boolean().default(false),
+
+  // When true, auctions for this client can carry a consolidatedEmdAmount
+  // and admins can attach bidders in consolidated mode. When false, every
+  // attachment must use lot-level EMD.
+  allowsConsolidatedEmd: z.boolean().default(false),
 };
 
 type ClientEditableShape = {
@@ -129,30 +134,17 @@ const clientCrossFieldRefine = (d: ClientEditableShape, ctx: z.RefinementCtx) =>
 export const clientCreateSchema = z
   .object({
     ...clientEditableFields,
-    // When true, auctions for this client can carry a consolidatedEmdAmount
-    // and admins can attach bidders in consolidated mode. When false, every
-    // attachment must use lot-level EMD.
-    allowsConsolidatedEmd: z.boolean().default(false),
     tncFileId: z.string().uuid().nullable().optional(),
   })
   .superRefine(clientCrossFieldRefine);
 export type ClientCreateInput = z.infer<typeof clientCreateSchema>;
 
-// Update schema excludes tncFileId and allowsConsolidatedEmd — those have
-// their own dedicated endpoints. All other client fields are editable here.
+// Update schema excludes tncFileId — it has its own dedicated endpoint.
+// All other client fields are editable here.
 export const clientUpdateSchema = z
   .object(clientEditableFields)
   .superRefine(clientCrossFieldRefine);
 export type ClientUpdateInput = z.infer<typeof clientUpdateSchema>;
-
-// Targeted toggle for the per-client consolidated-EMD feature flag. Admins
-// can flip this after onboarding without going through the whole client edit.
-export const clientConsolidatedEmdSettingSchema = z.object({
-  allowsConsolidatedEmd: z.boolean(),
-});
-export type ClientConsolidatedEmdSettingInput = z.infer<
-  typeof clientConsolidatedEmdSettingSchema
->;
 
 // -- Locations & contact points ----------------------------------------------
 

@@ -34,7 +34,7 @@
 import './_shared/load-env';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { PrismaClient, UserRole } from '@prisma/client';
+import { Prisma, PrismaClient, UserRole } from '@prisma/client';
 import sql from 'mssql';
 import { buildMssqlConfig } from './_shared/mssql';
 import { saveIdMap } from './_shared/id-map';
@@ -226,11 +226,40 @@ async function main() {
           where: { email: data.email },
           select: { id: true },
         });
-        const upserted = await prisma.user.upsert({
-          where: { email: data.email },
-          create: data,
-          update: data,
-        });
+        let upserted;
+        try {
+          upserted = await prisma.user.upsert({
+            where: { email: data.email },
+            create: data,
+            update: data,
+          });
+        } catch (err) {
+          // Phone-uniqueness can still fail here if a *prior* import run
+          // already parked this phone on a different row, or if our parser
+          // produced a collision the in-memory dedup missed. Retry with the
+          // phone nulled and log it like a normal phone drop.
+          if (
+            err instanceof Prisma.PrismaClientKnownRequestError &&
+            err.code === 'P2002' &&
+            phone.countryCode &&
+            phone.number
+          ) {
+            droppedPhones.push({
+              userId: u.UserId,
+              email: u.email,
+              droppedCountryCode: phone.countryCode,
+              droppedNumber: phone.number,
+              keptByUserId: -1,
+            });
+            upserted = await prisma.user.upsert({
+              where: { email: data.email },
+              create: { ...data, mobileCountryCode: null, mobileNumber: null },
+              update: { ...data, mobileCountryCode: null, mobileNumber: null },
+            });
+          } else {
+            throw err;
+          }
+        }
         idMap.set(u.UserId, upserted.id);
         if (before) updated += 1;
         else created += 1;

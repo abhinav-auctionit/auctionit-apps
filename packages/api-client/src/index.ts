@@ -756,12 +756,6 @@ export function createApiClient({ baseUrl }: ApiClientOptions) {
         request<Client>(baseUrl, '/admin/clients', json('POST', body)),
       update: (id: string, body: ClientUpdateInput) =>
         request<Client>(baseUrl, `/admin/clients/${id}`, json('PATCH', body)),
-      setConsolidatedEmdSetting: (id: string, allowsConsolidatedEmd: boolean) =>
-        request<Client>(
-          baseUrl,
-          `/admin/clients/${id}/consolidated-emd-setting`,
-          json('PATCH', { allowsConsolidatedEmd }),
-        ),
 
       listLocations: (id: string) =>
         request<ClientLocationWithContacts[]>(baseUrl, `/admin/clients/${id}/locations`),

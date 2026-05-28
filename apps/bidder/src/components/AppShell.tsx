@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <aside
-        className="flex w-60 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground"
+        className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground"
       >
         <div className="px-5 py-5">
           <Link to="/" className="font-semibold tracking-tight">
